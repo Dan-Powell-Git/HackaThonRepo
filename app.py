@@ -1,19 +1,29 @@
 """ReturnReady Utah — Flask backend and plain HTML/CSS/JS frontend."""
-from flask import Flask, jsonify, request
+import io
+from flask import Flask, Request, jsonify, request
 from werkzeug.exceptions import HTTPException
 from app_config import Config
 from functions.func1 import CATALOG, calculate_plan, extract_skills
+from functions.resume import MAX_FILE_BYTES, extract_resume
 from functions.func2 import CoachingError, generate_coaching
+
+
+class InMemoryUploadRequest(Request):
+    def _get_file_stream(self, total_content_length, content_type, filename=None, content_length=None):
+        return io.BytesIO()
 
 
 def create_app(test_config=None):
     app = Flask(__name__, static_folder='static')
+    app.request_class = InMemoryUploadRequest
     app.config.from_object(Config)
     if test_config:
         app.config.update(test_config)
 
     @app.before_request
     def validate_origin():
+        if request.path != '/api/resume' and request.content_length and request.content_length > 128 * 1024:
+            return jsonify(error='Please shorten your request.'), 413
         if request.method == 'POST':
             origin = request.headers.get('Origin')
             if origin and origin.rstrip('/') != request.host_url.rstrip('/'):
@@ -45,6 +55,17 @@ def create_app(test_config=None):
         if len(payload['story']) > 25000:
             return jsonify(error='Please shorten your story to 25,000 characters.'), 400
         return jsonify(skills=extract_skills(payload['story']))
+
+    @app.post('/api/resume')
+    def resume():
+        upload = request.files.get('resume')
+        if not upload:
+            return jsonify(error='Choose a resume file.'), 400
+        try:
+            text = extract_resume(upload.stream.read(MAX_FILE_BYTES + 1), upload.filename)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        return jsonify(story=text, skills=extract_skills(text))
 
     @app.post('/api/calculate')
     def calculate():

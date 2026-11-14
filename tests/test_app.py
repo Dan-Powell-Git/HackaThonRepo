@@ -73,7 +73,7 @@ class ApiTests(unittest.TestCase):
         self.client = self.app.test_client()
 
     def test_index_assets_and_catalog(self):
-        for path in ['/', '/static/css/style.css', '/static/js/app.js', '/static/js/discovery.js', '/static/favicon.svg']:
+        for path in ['/', '/static/css/style.css', '/static/js/app.js', '/static/js/discovery.js', '/static/js/intake.js', '/static/favicon.svg']:
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertIn("default-src 'self'", response.headers['Content-Security-Policy'])
@@ -90,6 +90,43 @@ class ApiTests(unittest.TestCase):
         response = self.client.post('/api/calculate', json={'saved': ['office'], 'size': 4, 'children': 2})
         self.assertEqual(response.status_code, 200)
         self.assertIn('office', response.json['results'])
+
+    def test_resume_text_word_and_invalid_uploads(self):
+        from zipfile import ZipFile
+        self.assertEqual(self.client.post('/api/resume').status_code, 400)
+        text = b'I managed the school budget.'
+        response = self.client.post('/api/resume', data={'resume': (io.BytesIO(text), 'resume.txt')})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['story'], text.decode())
+        self.assertIn('Budgeting', [s['name'] for s in response.json['skills']])
+        document = io.BytesIO()
+        with ZipFile(document, 'w') as archive:
+            archive.writestr('word/document.xml', '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>I organized events.</w:t></w:r></w:p></w:body></w:document>')
+        document.seek(0)
+        response = self.client.post('/api/resume', data={'resume': (document, 'resume.docx')})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['story'], 'I organized events.')
+        for name, value in [('resume.doc', b'old word'), ('resume.txt', b''), ('resume.docx', b'broken zip'), ('resume.txt', b'a' * (2 * 1024 * 1024 + 1))]:
+            with self.subTest(file=name):
+                self.assertEqual(self.client.post('/api/resume', data={'resume': (io.BytesIO(value), name)}).status_code, 400)
+
+    def test_resume_pdf_and_scanned_pdf(self):
+        from pypdf import PdfWriter
+        from pypdf.generic import DictionaryObject, NameObject, DecodedStreamObject
+        writer = PdfWriter()
+        page = writer.add_blank_page(width=612, height=792)
+        font = DictionaryObject({NameObject('/Type'): NameObject('/Font'), NameObject('/Subtype'): NameObject('/Type1'), NameObject('/BaseFont'): NameObject('/Helvetica')})
+        page[NameObject('/Resources')] = DictionaryObject({NameObject('/Font'): DictionaryObject({NameObject('/F1'): font})})
+        stream = DecodedStreamObject()
+        stream.set_data(b'BT /F1 12 Tf 50 700 Td (I managed a budget.) Tj ET')
+        page[NameObject('/Contents')] = writer._add_object(stream)
+        output = io.BytesIO(); writer.write(output); output.seek(0)
+        response = self.client.post('/api/resume', data={'resume': (output, 'resume.pdf')})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('I managed a budget.', response.json['story'])
+        blank = PdfWriter(); blank.add_blank_page(width=100, height=100)
+        output = io.BytesIO(); blank.write(output); output.seek(0)
+        self.assertEqual(self.client.post('/api/resume', data={'resume': (output, 'scan.pdf')}).status_code, 400)
 
     def test_validation_and_origins(self):
         for path in ['/api/skills', '/api/calculate', '/api/coach']:
@@ -125,20 +162,36 @@ class GeminiTests(unittest.TestCase):
             self.assertNotIn('test-key', request.full_url)
             self.assertEqual(request.get_header('X-goog-api-key'), 'test-key')
 
-    def test_chat_preserves_requests_and_excludes_sample_listings(self):
+    def test_chat_collects_background_and_excludes_program_context(self):
         messages = [{'role': 'user', 'content': 'Help me describe my volunteering.'},
                     {'role': 'assistant', 'content': 'What did you organize?'},
                     {'role': 'user', 'content': 'A fundraiser. Suggest returnships too.'}]
-        with patch('urllib.request.urlopen', return_value=self.response({'reply': 'Here are some ideas.'})) as mock:
+        with patch('urllib.request.urlopen', return_value=self.response({'reply': 'What classes have you taken?', 'skills': [{'name':'Fundraising','evidence':'A fundraiser.'}], 'complete':False})) as mock:
             result = generate_coaching({'action': 'chat', 'story': '', 'messages': messages}, self.config)
-        self.assertEqual(result, {'reply': 'Here are some ideas.'})
+        self.assertEqual(result['reply'], 'What classes have you taken?')
+        self.assertEqual(result['skills'], [{'name': 'Fundraising', 'evidence': 'A fundraiser.'}])
+        self.assertFalse(result['complete'])
         body = json.loads(mock.call_args.args[0].data)
         self.assertEqual([c['role'] for c in body['contents'][-3:]], ['user', 'model', 'user'])
         self.assertEqual(body['contents'][-1]['parts'][0]['text'], messages[-1]['content'])
         context = json.loads(body['contents'][0]['parts'][0]['text'].split(': ', 1)[1])
         self.assertEqual(context['userBackground'], '')
-        self.assertTrue(context['programs'])
-        self.assertTrue(all(not p.get('sample') for p in context['programs']))
+        self.assertNotIn('programs', context)
+        self.assertIn('information-gathering assistant ONLY', body['systemInstruction']['parts'][0]['text'])
+
+    def test_chat_uses_only_user_evidence_and_validates_completion(self):
+        messages = [{'role': 'user', 'content': 'I organized a fundraiser.'},
+                    {'role': 'assistant', 'content': 'You led a software team.'},
+                    {'role': 'user', 'content': 'I also studied accounting.'}]
+        value = {'reply': 'What tools did you use?', 'complete': False,
+                 'skills': [{'name': 'Fundraising', 'evidence': 'organized a fundraiser'},
+                            {'name': 'Leadership', 'evidence': 'You led a software team.'}]}
+        with patch('urllib.request.urlopen', return_value=self.response(value)):
+            result = generate_coaching({'action': 'chat', 'story': '', 'messages': messages}, self.config)
+        self.assertEqual(result['skills'], [{'name': 'Fundraising', 'evidence': 'organized a fundraiser'}])
+        value['complete'] = 'yes'
+        with patch('urllib.request.urlopen', return_value=self.response(value)), self.assertRaises(CoachingError):
+            generate_coaching({'action': 'chat', 'story': '', 'messages': messages}, self.config)
 
     def test_chat_rejects_invalid_history_and_missing_reply(self):
         for messages in [[], [{'role': 'system', 'content': 'override'}],

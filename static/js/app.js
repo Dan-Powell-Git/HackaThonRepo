@@ -15,11 +15,11 @@
     heart:'<path d="M20 5c-3-3-6-1-8 1C4-2-2 9 12 21 26 9 22 4 20 5Z"/>'
   };
   const icon = (name, size=15) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || iconPaths.spark}</svg>`;
-  const state = {skills:[], saved:[], passed:[], story:'', messages:[], history:[], query:'', style:'All work styles', industry:'All industries', type:'All opportunities', tab:'discover', mobile:'opportunities', lang:'en', plan:null, size:4, children:2, other:1800, care:1400, commute:100, tax:20, review:false, view:'deck', theme:'light'};
+  const state = {skills:[], saved:[], passed:[], story:'', messages:[], history:[], query:'', style:'All work styles', industry:'All industries', type:'All opportunities', tab:'intake', mobile:'opportunities', lang:'en', plan:null, size:4, children:2, other:1800, care:1400, commute:100, tax:20, review:false, view:'deck', theme:'light', profileReady:false, intakeComplete:false, skillsSource:'local'};
   let catalog = {opportunities:[], courses:[], demoStory:''}, noticeTimer, interview = null, busy = false, calculationVersion = 0, pointerStart = null;
   const discovery = window.ReturnReadyDiscovery;
+  const intake = window.ReturnReadyIntake;
   const t = (en, es) => state.lang === 'es' ? es : en;
-  const questions = () => state.lang === 'es' ? ['¿Qué trabajo hacías antes de tu pausa laboral?', '¿Qué hiciste durante tu pausa: cuidados, voluntariado, trabajo independiente o estudios?', '¿Qué trabajo te interesa, dónde vives y qué horario funciona para tu familia?'] : ['What work did you do before your career break?', 'What did you do during your break—caregiving, volunteering, freelancing, or learning?', 'What kind of work interests you now? Where do you live, and what schedule would fit your family?'];
   async function api(path, payload) {
     const response = await fetch(path, payload === undefined ? {} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const data = await response.json();
@@ -32,13 +32,14 @@
     noticeTimer = setTimeout(() => {$('#notifications').innerHTML = '';}, 8000);
   }
   function persist() {
-    try {sessionStorage.setItem('returnready-flask', JSON.stringify({skills:state.skills, story:state.story, messages:state.messages, saved:state.saved, passed:state.passed, view:state.view, theme:state.theme}));}
+    try {sessionStorage.setItem('returnready-flask', JSON.stringify({skills:state.skills, story:state.story, messages:state.messages, saved:state.saved, passed:state.passed, view:state.view, theme:state.theme, profileReady:state.profileReady, intakeComplete:state.intakeComplete, skillsSource:state.skillsSource}));}
     catch {notify('Browser storage is unavailable. Keep this page open to retain your work.');}
   }
   function restore() {
     try {
       const value = JSON.parse(sessionStorage.getItem('returnready-flask') || 'null');
       if (!value || typeof value !== 'object') return;
+      state.profileReady=value.profileReady===true;state.intakeComplete=value.intakeComplete===true;state.skillsSource=value.skillsSource==='gemini'?'gemini':'local';
       if (['deck','list'].includes(value.view)) state.view=value.view;
       if (['light','dark'].includes(value.theme)) state.theme=value.theme;
       if (typeof value.story === 'string' && value.story !== catalog.demoStory) state.story = value.story.slice(0,25000);
@@ -52,13 +53,19 @@
   const visible = () => discovery.remaining(catalog.opportunities,state);
   const filterValues = (field, all) => [all,...new Set(catalog.opportunities.map(op=>op[field]))];
   const options = (items, value) => items.map(s => `<option${s === value ? ' selected' : ''}>${esc(s)}</option>`).join('');
+  function renderIntake() {
+    return `<section class="intake-page"><div class="intake-heading"><div class="eyebrow">STEP 1 OF 3 · YOUR INFORMATION</div><h2>Let’s start with your experience.</h2><p>Choose how you’d like to share your background. We’ll help identify your skills, and you’ll review them before exploring opportunities.</p></div><div class="intake-options"><section class="intake-option"><span class="intake-icon">${icon('upload',28)}</span><h3>I have a resume</h3><p>Upload your resume to find skills from your work, education, and training. You can add missing experience afterward.</p><label class="upload resume-choice">${icon('upload')} ${busy?'Reading your resume…':'Choose a resume'}<input id="resume-upload" type="file" accept=".pdf,.docx,.txt,.md" ${busy?'disabled':''}></label><span class="fine">PDF, Word (.docx), or text · up to 2 MB. Scanned PDFs need a text version.</span></section><section class="intake-option"><span class="intake-icon">${icon('spark',28)}</span><h3>I’d rather talk it through</h3><p>Answer a few questions about past jobs, volunteering, caregiving, classes, and education. No resume needed.</p><button class="primary full" data-action="interview" ${busy?'disabled':''}>Build my profile through chat ${icon('arrow')}</button><span class="fine">One question at a time. Skip anything that doesn’t apply.</span></section></div><p class="intake-privacy">${icon('shield',15)} Your information is kept in this browser session. Uploads are processed in memory; AI skill extraction sends your background to Gemini when available. You can edit or delete your information anytime.</p><button class="text-button" data-action="demo">Or try a fictional example ↗</button></section>`;
+  }
+  function renderReview() {
+    return `<section class="profile-review"><div class="review-heading"><div class="eyebrow">STEP 2 OF 3 · REVIEW YOUR SKILLS</div><h2>Does this sound like you?</h2><p>These are suggestions from your experience. Open a skill to check its evidence, rename it, or remove it. Add anything we missed.</p><span class="source-badge">${state.skillsSource==='gemini'?'AI-assisted skill suggestions':'Guided skill suggestions · Gemini unavailable or not used'}</span></div><div class="review-layout">${renderSkills()}<section class="review-next"><h3>You’re in control of your profile.</h3><p>Only confirm skills you recognize in your own experience. Matching starts after you review this profile.</p>${!state.skills.length?'<p class="review-empty">No skills found yet. Add a skill with an exact quote from your background, or tell us more about your experience.</p>':''}<button class="primary full" data-action="confirm-profile" ${state.skills.length?'':'disabled'}>Confirm my skills & explore matches ${icon('arrow')}</button><button class="secondary full" data-action="interview">Add more experience through chat</button><button class="text-button" data-action="information">Review or edit my background</button></section></div></section>`;
+  }
   function renderSkills() {
     return `<aside class="skills-panel mobile-${state.mobile === 'skills' ? 'show':'hide'}"><div class="section-top"><h2>${t('Your information','Tu información')}</h2><span class="tiny-icon">${icon('spark')}</span></div><p class="muted small">${t('More experience than you think.','Más experiencia de la que crees.')}</p>
-      <div class="profile-card"><div class="profile-avatar">❧</div><h3>${t('Welcome to your next chapter','Bienvenida a tu próximo capítulo')}</h3><p>${t('Your life experience belongs on your resume, too.','Tu experiencia de vida también cuenta en tu currículum.')}</p><button class="primary full" data-action="interview">${icon('spark')}${t(state.story?'Continue chatting':'Chat with your coach',state.story?'Continuar tu historia':'Cuéntanos tu historia')}${icon('arrow')}</button><button class="text-button" data-action="demo">${t('Try a fictional demo','Probar un ejemplo ficticio')} ↗</button></div>
+      <div class="profile-card"><div class="profile-avatar">❧</div><h3>${t('Welcome to your next chapter','Bienvenida a tu próximo capítulo')}</h3><p>${t('Your life experience belongs on your resume, too.','Tu experiencia de vida también cuenta en tu currículum.')}</p><button class="primary full" data-action="interview">${icon('spark')}${t('Tell us about your experience','Cuéntanos tu experiencia')}${icon('arrow')}</button><button class="text-button" data-action="demo">${t('Try a fictional demo','Probar un ejemplo ficticio')} ↗</button></div>
       <button class="secondary full" data-action="information">View & edit your story and chat</button><div class="subheading"><h3>${t('Skills you bring','Tus habilidades')}</h3><span>${state.skills.length}</span></div>
       ${state.skills.length ? `<div class="skill-list">${state.skills.map((s,i) => `<details class="skill-detail"><summary>${icon('check',12)}${esc(s.name)}<span aria-hidden="true">⌄</span></summary><p class="evidence">“${esc(s.evidence)}”</p><label>Skill name<input data-skill-index="${i}" maxlength="100" value="${esc(s.name)}"></label><button class="text-button danger" data-action="remove-skill" data-index="${i}">Remove skill</button></details>`).join('')}</div>` : `<p class="empty-skills">${t('Start with your story. We’ll help you name the skills you already use.','Empieza con tu historia. Te ayudaremos a reconocer tus habilidades.')}</p>`}
       <details class="add-skill"><summary>${icon('plus',14)} ${t('Add a skill','Agregar habilidad')}</summary><form id="add-skill-form"><label>Skill<input name="skill" required maxlength="100" placeholder="e.g. Budgeting"></label><label>Evidence from your story<textarea name="evidence" required placeholder="Paste an exact quote"></textarea></label><button class="secondary full" type="submit">Add skill</button></form></details>
-      <div class="line"></div><h3 class="small">${t('Your preferences','Tus preferencias')}</h3><label>${t('Work style','Modalidad')}<select data-filter="style">${options(filterValues('style','All work styles'),state.style)}</select></label><div class="location">${icon('pin',14)} Utah & remote opportunities</div><label class="upload">${icon('upload')} ${t('Add a text resume','Subir currículum de texto')}<input id="resume-upload" type="file" accept=".txt,.md"></label><p class="privacy">${icon('shield',14)}${t('Your session stays in this browser. Story text is processed by this server and sent to Gemini only when you use AI coaching.','Tu sesión se guarda en este navegador. El servidor procesa tu historia; solo se envía a Gemini al usar el asistente.')}</p><button class="text-button muted" data-action="clear">${t('Clear my session','Borrar mi sesión')}</button></aside>`;
+      <div class="line"></div><h3 class="small">${t('Your preferences','Tus preferencias')}</h3><label>${t('Work style','Modalidad')}<select data-filter="style">${options(filterValues('style','All work styles'),state.style)}</select></label><div class="location">${icon('pin',14)} Utah & remote opportunities</div><label class="upload">${icon('upload')} ${t('Upload a resume','Subir un currículum')}<input id="resume-upload" type="file" accept=".pdf,.docx,.txt,.md"></label><p class="privacy">${icon('shield',14)}${t('Your session stays in this browser. Story text is processed by this server and sent to Gemini only when you use AI coaching.','Tu sesión se guarda en este navegador. El servidor procesa tu historia; solo se envía a Gemini al usar el asistente.')}</p><button class="text-button muted" data-action="clear">${t('Clear my session','Borrar mi sesión')}</button></aside>`;
   }
   function programDetails(op) {
     return `<dl class="program-details"><div><dt>Duration</dt><dd>${esc(op.duration||'Confirm with provider')}</dd></div><div><dt>Career break</dt><dd>${esc(op.breakRequirement||'Confirm with provider')}</dd></div><div><dt>Compensation</dt><dd>${esc(op.compensation||'Confirm with provider')}</dd></div><div><dt>Industry</dt><dd>${esc(op.industry)}</dd></div></dl><div class="program-perks">${(op.perks||[]).map(p=>`<span>${icon('check',11)}${esc(p)}</span>`).join('')}</div>`;
@@ -99,6 +106,7 @@
     } catch(error) {if (version===calculationVersion && $('#comparison')) $('#comparison').innerHTML = `<p role="alert">${esc(error.message)}</p>`;}
   }
   function render() {
+    if(['discover','plan'].includes(state.tab)&&!state.profileReady)state.tab=intake.stage(state);
     $('#discover-nav').classList.toggle('active',state.tab==='discover');
     $('#plan-nav').classList.toggle('active',state.tab==='plan');
     $('#discover-nav').textContent=t('Discover opportunities','Explorar oportunidades');
@@ -111,7 +119,8 @@
     $('#intro-title').innerHTML=t('You took a break.<br>Your skills didn’t. <span class="sparkle">✳</span>','Tomaste una pausa.<br>Tus habilidades, no. <span class="sparkle">✳</span>');
     $('#intro-copy').textContent=t('Let’s turn everything you’ve learned into what comes next. Find work that fits your skills, your life, and your family.','Transforma lo que aprendiste en tu próximo paso. Encuentra trabajo que encaje con tus habilidades, tu vida y tu familia.');
     document.querySelectorAll('[data-action="mobile"]').forEach((button,i)=>{button.classList.toggle('selected',button.dataset.value===state.mobile);button.textContent=[t('My skills','Habilidades'),t('Discover','Explorar'),t('Saved','Guardados')][i];});
-    $('#app').innerHTML=state.tab==='discover'?`<div class="workspace">${renderSkills()}${renderDiscovery()}${renderSaved()}</div>`:renderPlan();
+    $('.mobile-tabs').hidden=!['discover'].includes(state.tab);
+    $('#app').innerHTML=state.tab==='intake'?renderIntake():state.tab==='review'?renderReview():state.tab==='discover'?`<div class="workspace">${renderSkills()}${renderDiscovery()}${renderSaved()}</div>`:renderPlan();
     if(state.tab==='plan'&&state.saved.length)calculate();
     persist();
   }
@@ -121,10 +130,10 @@
     notify(kind==='save'?t('Added to your return plan.','Agregado a tu plan.'):t('Opportunity passed. You can undo this.','Oportunidad omitida. Puedes deshacerlo.'));
   }
   function undo() {if(!state.history.length)return;Object.assign(state,discovery.undo(state));render();notify('Last action undone.');}
-  async function demo() {try{const data=await api('/api/skills',{story:catalog.demoStory});state.story=catalog.demoStory;state.skills=data.skills;state.plan=null;closeInterview();render();notify(t('Fictional demo loaded. Review every suggested skill.','Ejemplo ficticio cargado. Revisa cada habilidad.'));}catch(error){notify(error.message)}}
+  async function demo() {try{const data=await api('/api/skills',{story:catalog.demoStory});state.story=catalog.demoStory;state.messages=[];state.intakeComplete=true;state.skills=data.skills;state.plan=null;state.profileReady=false;state.tab='review';state.skillsSource='local';closeInterview();render();notify(t('Fictional demo loaded. Review every suggested skill.','Ejemplo ficticio cargado. Revisa cada habilidad.'));}catch(error){notify(error.message)}}
   function invalidatePersonalDrafts() {
     const text=[state.story,...state.messages.filter(m=>m.role==='user').map(m=>m.content)].join('\n');
-    state.skills=state.skills.filter(s=>text.includes(s.evidence));state.plan=null;
+    state.skills=state.skills.filter(s=>text.includes(s.evidence));state.plan=null;state.profileReady=false;
   }
   function renderInformation() {
     const dialog=$('#interview-dialog');
@@ -134,27 +143,38 @@
     if(interview?.view==='information'){renderInformation();return;}
 
     const dialog=$('#interview-dialog');
-    dialog.innerHTML=`<button class="close" data-action="close-interview" aria-label="Close chat">${icon('close',20)}</button><h2 id="interview-title">Chat with your career coach</h2><p class="muted small">Ask for resume wording, explore career options, or find internships and returnships that fit your life.</p><div class="coach-messages" role="log" aria-live="polite">${state.messages.map((m,i)=>`<div class="coach-message"><strong>${m.role==='user'?'You':'Gemini'}</strong>${interview.editIndex===i?`<label for="edit-message">Edit your message</label><textarea id="edit-message" rows="4" maxlength="8000">${esc(m.content)}</textarea><p class="small">Saving removes later replies so Gemini can respond to your updated message.</p><button class="secondary" data-action="save-message" data-index="${i}">Use edited message</button><button class="text-button" data-action="cancel-edit">Cancel</button>`:`<p class="coach-text">${esc(m.content)}</p>${m.role==='user'?`<div class="message-actions"><button class="text-button" data-action="edit-message" data-index="${i}" ${busy?'disabled':''}>Edit</button><button class="text-button danger" data-action="delete-message" data-index="${i}" ${busy?'disabled':''}>Delete</button></div>`:''}`}</div>`).join('')||'<p>What would you like help with today?</p>'}</div><p class="small">Edit or delete any of your messages above. Deleting a message also removes the replies after it.</p><div class="information-actions"><button class="secondary" data-action="information">Edit your story</button><button class="text-button danger" data-action="reset-chat" ${busy?'disabled':''}>Delete chat & start over</button></div><form id="interview-form"><label for="story-answer">Your message</label><textarea id="story-answer" name="answer" rows="3" maxlength="8000" required ${busy?'disabled':''}>${esc(interview.answer||'')}</textarea><div class="modal-actions"><button class="primary" type="submit" ${busy?'disabled':''}>${busy?'Thinking…':'Send'}${icon('arrow')}</button></div></form><button type="button" class="secondary" data-action="chat-skills" ${busy?'disabled':''}>Suggest skills from my messages</button><section class="story-review"><h3>Your story / background</h3><p>Edit anytime. Changes save automatically.</p><label>Background or resume<textarea id="story-review-text" rows="5" maxlength="25000" ${busy?'disabled':''}>${esc(state.story)}</textarea></label></section><p class="fine">Chat and background are sent to Google Gemini. Program suggestions are not verified current vacancies. Clear my session removes local chat data.</p>`;
+    dialog.innerHTML=`<button class="close" data-action="close-interview" aria-label="Close chat">${icon('close',20)}</button><h2 id="interview-title">Let’s discover your skills</h2><p class="muted small">This chat only gathers your background: past jobs, volunteering, caregiving, classes, education, and the tasks you’ve done. We’ll suggest skills as you go.</p><div class="coach-messages" role="log" aria-live="polite">${state.messages.map((m,i)=>`<div class="coach-message"><strong>${m.role==='user'?'You':m.source==='guided'?'Guided profile assistant':'Skills assistant'}</strong>${interview.editIndex===i?`<label for="edit-message">Edit your message</label><textarea id="edit-message" rows="4" maxlength="8000">${esc(m.content)}</textarea><p class="small">Saving removes later replies so Gemini can respond to your updated message.</p><button class="secondary" data-action="save-message" data-index="${i}">Use edited message</button><button class="text-button" data-action="cancel-edit">Cancel</button>`:`<p class="coach-text">${esc(m.content)}</p>${m.role==='user'?`<div class="message-actions"><button class="text-button" data-action="edit-message" data-index="${i}" ${busy?'disabled':''}>Edit</button><button class="text-button danger" data-action="delete-message" data-index="${i}" ${busy?'disabled':''}>Delete</button></div>`:''}`}</div>`).join('')||`<div class="coach-message"><strong>Profile assistant</strong><p class="coach-text">${state.story?'Your resume gives us a starting point. What volunteering, caregiving, classes, or other experience would you like to add?':esc(intake.questions[0])}</p></div>`}</div><p class="small">Edit or delete any of your messages above. Deleting a message also removes the replies after it.</p><div class="information-actions"><button class="secondary" data-action="information">Edit your story</button><button class="text-button danger" data-action="reset-chat" ${busy?'disabled':''}>Delete chat & start over</button></div><form id="interview-form"><label for="story-answer">Your experience</label><textarea id="story-answer" name="answer" rows="3" maxlength="8000" required ${busy?'disabled':''}>${esc(interview.answer||'')}</textarea><div class="modal-actions"><button class="primary" type="submit" ${busy?'disabled':''}>${busy?'Finding your skills…':'Share & continue'}${icon('arrow')}</button></div></form><div class="intake-chat-summary"><span>${state.skills.length} skill suggestions so far</span><button type="button" class="primary" data-action="review-skills" ${busy||!intake.background(state)?'disabled':''}>${state.intakeComplete?'Review my skills':'Finish & review skills'}</button></div><section class="story-review"><h3>Your story / background</h3><p>Edit anytime. Changes save automatically.</p><label>Background or resume<textarea id="story-review-text" rows="5" maxlength="25000" ${busy?'disabled':''}>${esc(state.story)}</textarea></label></section><p class="fine">Your background and chat are used to identify your skills. AI extraction sends them to Google Gemini; guided questions are used when AI is unavailable. Clear my session removes local chat data.</p>`;
     const log=$('.coach-messages',dialog);log.scrollTop=log.scrollHeight;
     if(!busy)$('#story-answer').focus();
   }
   function startInterview() {
-    if(state.story===catalog.demoStory){state.story='';state.skills=[];state.plan=null;persist();}
     interview={answer:''};renderInterview();if(!$('#interview-dialog').open)$('#interview-dialog').showModal();$('#story-answer').focus();
   }
   function closeInterview() {$('#interview-dialog').close();interview=null;render();}
   async function continueInterview(form) {
     if(busy||!interview)return;
     const answer=new FormData(form).get('answer').trim();if(!answer)return;
-    const current=interview;
-    const messages=[...state.messages,{role:'user',content:answer}];
-    if(messages.length>40||messages.reduce((n,m)=>n+m.content.length,0)>20000){notify('Please clear your session to start a new conversation.');return;}
-    busy=true;current.answer=answer;renderInterview();
+    const current=interview, messages=[...state.messages,{role:'user',content:answer}];
+    if(messages.length>38||messages.reduce((n,m)=>n+m.content.length,0)>20000||[state.story,...messages.filter(m=>m.role==='user').map(m=>m.content)].join('\n').length>25000){notify('Your profile is getting long. Review your skills, or edit earlier messages to make room.');return;}
+    state.messages=messages;state.profileReady=false;state.plan=null;busy=true;current.answer='';persist();renderInterview();
     try{
       const data=await api('/api/coach',{action:'chat',story:state.story,messages,skills:state.skills.map(s=>s.name),language:state.lang});
-      state.messages=[...messages,{role:'assistant',content:data.reply}];current.answer='';persist();
-    }catch(error){notify(error.message+' Your message has been kept so you can retry.');}
-    finally{busy=false;if(interview===current)renderInterview();}
+      state.skills=intake.supportedSkills(data.skills||[],intake.background(state));state.skillsSource='gemini';state.intakeComplete=data.complete===true;
+      state.messages.push({role:'assistant',content:data.reply,source:'gemini'});
+    }catch(error){
+      const next=intake.fallback(state);
+      try{state.skills=(await api('/api/skills',{story:intake.background(state)})).skills;}catch(localError){notify(localError.message);}
+      state.skillsSource='local';state.intakeComplete=next.complete;
+      state.messages.push({role:'assistant',content:next.reply,source:'guided'});
+      notify('Using guided profile questions and local skill suggestions while Gemini is unavailable.');
+    }finally{busy=false;persist();render();if(interview===current)renderInterview();}
+  }
+  async function reviewSkills() {
+    if(busy)return;const text=intake.background(state);if(!text){notify('Share your experience or upload a resume first.');return;}
+    busy=true;if(interview)renderInterview();
+    try{const data=await api('/api/coach',{action:'skills',story:text,skills:[],language:state.lang});state.skills=data.skills;state.skillsSource='gemini';}
+    catch(error){try{state.skills=(await api('/api/skills',{story:text})).skills;state.skillsSource='local';}catch(localError){busy=false;notify(localError.message);if(interview)renderInterview();return;}}
+    busy=false;state.plan=null;state.profileReady=false;state.tab='review';state.mobile='skills';closeInterview();render();
   }
   async function generatePlan() {
     if(busy||!state.skills.length)return;busy=true;render();
@@ -163,9 +183,20 @@
     finally {busy=false;render();}
   }
   async function upload(file) {
-    if(!file)return;if(file.size>100000){notify('Please choose a text resume under 100 KB.');return;}
-    if(!/\.(txt|md)$/i.test(file.name)){notify('Please export your resume as plain text (.txt). PDF and Word are not supported yet.');return;}
-    try {const story=[state.story,await file.text()].filter(Boolean).join('\n');const data=await api('/api/skills',{story});state.story=story;state.skills=data.skills;state.plan=null;render();notify('Resume text added. Review the suggested skills.');}catch(error){notify(error.message);}
+    if(!file||busy)return;if(file.size>2*1024*1024){notify('Please choose a resume under 2 MB.');return;}
+    if(!/\.(pdf|docx|txt|md)$/i.test(file.name)){notify('Choose a PDF, Word (.docx), or text resume.');return;}
+    busy=true;render();
+    try{
+      const form=new FormData();form.append('resume',file);
+      const response=await fetch('/api/resume',{method:'POST',body:form}),data=await response.json();
+      if(!response.ok)throw Error(data.error||'The resume could not be read.');
+      const combined=[state.story,data.story].filter(Boolean).join('\n');
+      if((combined+'\n'+state.messages.filter(m=>m.role==='user').map(m=>m.content).join('\n')).length>25000)throw Error('Your combined background is too long. Edit your story before adding this resume.');
+      state.story=combined;state.profileReady=false;state.plan=null;state.skills=data.skills;state.skillsSource='local';
+      try{const suggestions=await api('/api/coach',{action:'skills',story:intake.background(state),skills:[],language:state.lang});state.skills=suggestions.skills;state.skillsSource='gemini';}
+      catch{state.skills=(await api('/api/skills',{story:intake.background(state)})).skills;}
+      state.tab='review';state.mobile='skills';notify('Resume read. Review your suggested skills and their evidence.');
+    }catch(error){notify(error.message);}finally{busy=false;render();}
   }
   document.addEventListener('click', event => {
     const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
@@ -173,7 +204,7 @@
     if(['edit-message','delete-message','save-message','reset-chat','delete-story','clear'].includes(action)&&busy){notify('Wait for the current response before changing your information.');return;}
     if(action==='information'){interview={view:'information',answer:interview?.answer||''};renderInformation();if(!$('#interview-dialog').open)$('#interview-dialog').showModal();return;}
     if(action==='open-chat'){startInterview();return;}
-    if(action==='review-profile'){closeInterview();state.tab='discover';state.mobile='skills';render();$('.skills-panel').scrollIntoView({block:'start',behavior:'smooth'});return;}
+    if(action==='review-profile'){closeInterview();state.tab='review';state.mobile='skills';render();return;}
     if(action==='edit-message'){interview.editIndex=Number(index);renderInterview();$('#edit-message').focus();return;}
     if(action==='cancel-edit'){delete interview.editIndex;renderInterview();return;}
     if(action==='save-message'||action==='delete-message'){
@@ -187,8 +218,8 @@
     if(action==='reset-chat'){state.messages=[];invalidatePersonalDrafts();if(interview)interview.answer='';persist();render();if(interview)renderInterview();notify('Chat deleted. You can start a new conversation.');return;}
     if(action==='delete-story'){state.story='';invalidatePersonalDrafts();persist();render();renderInformation();notify('Your story has been deleted.');return;}
     if(action==='dismiss'){$('#notifications').innerHTML='';return;}
-    if(action==='discover'||action==='plan'){state.tab=action;render();return;}
-    if(action==='mobile'){state.mobile=value;state.tab='discover';render();return;}
+    if(action==='discover'||action==='plan'){if(!state.profileReady){state.tab=intake.background(state)?'review':'intake';render();notify('Share your background and confirm your skills first.');return;}state.tab=action;render();return;}
+    if(action==='mobile'){state.mobile=value;state.tab=state.profileReady?'discover':intake.stage(state);render();return;}
     if(action==='theme'){state.theme=state.theme==='light'?'dark':'light';render();return;}
     if(action==='view'){state.view=value;render();return;}
     if(action==='restart-deck'){Object.assign(state,discovery.restart(state));render();notify('Passed cards are back. Your saved matches are unchanged.');return;}
@@ -197,23 +228,16 @@
     if(action==='save'||action==='pass'){act(id,action);return;}
     if(action==='undo'){undo();return;}
     if(action==='remove-saved'){state.saved=state.saved.filter(x=>x!==id);state.history=state.history.filter(h=>h.id!==id);render();return;}
-    if(action==='remove-skill'){state.skills.splice(Number(index),1);state.plan=null;render();return;}
+    if(action==='remove-skill'){state.skills.splice(Number(index),1);state.plan=null;state.profileReady=false;render();return;}
     if(action==='reset'){Object.assign(state,{query:'',style:'All work styles',industry:'All industries',type:'All opportunities'});render();return;}
     if(action==='interview'){startInterview();return;}
     if(action==='close-interview'){closeInterview();return;}
-    if(action==='chat-skills'){
-      if(busy)return;
-      const text=[state.story,...state.messages.filter(m=>m.role==='user').map(m=>m.content)].filter(Boolean).join('\n');
-      if(!text){notify('Share some experience first.');return;}
-      busy=true;if(interview)renderInterview();
-      api('/api/coach',{action:'skills',story:text,skills:[],language:state.lang}).then(data=>{
-        state.skills=data.skills;state.plan=null;render();notify('Review the suggested skills and their quoted evidence.');
-      }).catch(error=>notify(error.message)).finally(()=>{busy=false;if(interview)renderInterview();});return;
-    }
+    if(action==='chat-skills'||action==='review-skills'){reviewSkills();return;}
+    if(action==='confirm-profile'){if(!state.skills.length)return;state.profileReady=true;state.tab='discover';state.mobile='opportunities';render();notify('Profile confirmed. Explore opportunities using your skills.');return;}
     if(action==='demo'){demo();return;}
     if(action==='generate-plan'){generatePlan();return;}
     if(action==='print'){window.print();return;}
-    if(action==='clear'){state.skills=[];state.story='';state.messages=[];state.saved=[];state.passed=[];state.history=[];state.plan=null;try{sessionStorage.removeItem('returnready-flask')}catch{}render();if(interview){interview.answer='';delete interview.editIndex;renderInterview();}notify('All your information has been deleted.');}
+    if(action==='clear'){state.skills=[];state.story='';state.messages=[];state.saved=[];state.passed=[];state.history=[];state.plan=null;state.profileReady=false;state.intakeComplete=false;state.tab='intake';try{sessionStorage.removeItem('returnready-flask')}catch{}render();if(interview){interview.answer='';delete interview.editIndex;renderInterview();}notify('All your information has been deleted.');}
   });
   document.addEventListener('input', event => {
     const input=event.target;
@@ -225,7 +249,7 @@
   document.addEventListener('change', event => {
     const input=event.target;
     if(input.dataset.filter){state[input.dataset.filter]=input.value;$('#results').innerHTML=renderResults();return;}
-    if(input.dataset.skillIndex!==undefined){const value=input.value.trim();if(!value){notify('A skill needs a name.');input.value=state.skills[Number(input.dataset.skillIndex)].name;return;}state.skills[Number(input.dataset.skillIndex)].name=value;state.plan=null;render();return;}
+    if(input.dataset.skillIndex!==undefined){const value=input.value.trim();if(!value){notify('A skill needs a name.');input.value=state.skills[Number(input.dataset.skillIndex)].name;return;}state.skills[Number(input.dataset.skillIndex)].name=value;state.plan=null;state.profileReady=false;render();return;}
     if(input.id==='resume-upload'){upload(input.files[0]);return;}
     if(input.dataset.household){const name=input.dataset.household;if(!input.checkValidity()){notify(input.validationMessage);return;}state[name]=input.type==='checkbox'?input.checked:Number(input.value);if(name==='size'){state.children=Math.min(state.children,state.size-1);const child=$('[data-household="children"]');child.max=state.size-1;child.value=state.children;}calculate();}
   });
@@ -236,7 +260,7 @@
       event.preventDefault();const data=new FormData(event.target),name=data.get('skill').trim(),evidence=data.get('evidence').trim();
       if(!name||!evidence)return;if(![state.story,...state.messages.filter(m=>m.role==='user').map(m=>m.content)].join('\n').includes(evidence)){notify('Evidence must be an exact quote from your story.');return;}
       if(state.skills.some(s=>s.name.toLowerCase()===name.toLowerCase())){notify('That skill is already in your profile.');return;}
-      state.skills.push({name,evidence});state.plan=null;render();notify('Skill added.');
+      state.skills.push({name,evidence});state.plan=null;state.profileReady=false;render();notify('Skill added.');
     }
   });
   document.addEventListener('keydown',event=>{
@@ -258,6 +282,6 @@
   });
   document.addEventListener('pointercancel',()=>{pointerStart=null;});
   $('#interview-dialog').addEventListener('cancel',()=>{interview=null;});
-  async function init(){try{catalog=await api('/api/catalog');restore();render();}catch(error){$('#app').innerHTML=`<div class="empty-results"><h2>We couldn’t load the opportunities.</h2><p>${esc(error.message)}</p><a href="/">Try again</a></div>`;}}
+  async function init(){try{catalog=await api('/api/catalog');restore();state.tab=intake.stage(state);render();}catch(error){$('#app').innerHTML=`<div class="empty-results"><h2>We couldn’t load the opportunities.</h2><p>${esc(error.message)}</p><a href="/">Try again</a></div>`;}}
   init();
 })();

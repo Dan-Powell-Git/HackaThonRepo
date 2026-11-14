@@ -15,11 +15,13 @@ functions/
   __init__.py
   func1.py                     # Catalog, skills, matching, child care calculator
   func2.py                     # Server-only Gemini integration
+  resume.py                    # In-memory resume text extraction
 static/
   html/index.html              # Application shell
   css/style.css                # Responsive styling
   js/app.js                    # Browser interactions and API calls
   js/discovery.js              # Shared filtering, matching, and deck state
+  js/intake.js                 # Information collection and review rules
   favicon.svg
 data/
   catalog.json                 # Sample opportunities and learning resources
@@ -65,6 +67,7 @@ For deployment, use a Python-capable host and a production WSGI server pointing 
 |---|---|
 | `GET /` | Serve the HTML interface |
 | `GET /api/catalog` | Return the catalog, learning resources, and fictional demo story |
+| `POST /api/resume` | Extract PDF, DOCX, or text resume and suggest skills |
 | `POST /api/skills` | Suggest skills with exact evidence quotes from story text |
 | `POST /api/coach` | Gemini conversation, skill extraction, or resume/gap draft |
 | `POST /api/calculate` | Deterministic household and sample-job comparison |
@@ -75,12 +78,22 @@ Cecilia's **Return & Rise** prototype contributes the focused card deck, program
 
 The integration reimplements the prototype's interactions in the Flask frontend, correcting its broken JavaScript template strings and keeping all controls compatible with the app's content security policy. Cecilia's original `html_cecilia` file is unchanged locally.
 
+## Information-first flow
+
+1. **Share your information:** choose a resume upload or a guided conversation. The chat only collects background and identifies skills; it does not offer job suggestions or general career advice.
+2. **Review skills:** every suggestion includes a quote from the resume or the user's own chat messages. Rename, remove, or add skills, then explicitly confirm the profile.
+3. **Explore matches:** the opportunity deck becomes available after profile confirmation. Resume writing remains a separate part of the return planner.
+
+The conversation asks about paid work and tasks, volunteering, caregiving and other unpaid experience, classes/training, education, and tools. It extracts skills as the conversation progresses. Users can skip topics or finish and review at any point. When Gemini is unavailable, clearly labeled guided questions and local skill suggestions keep the flow usable.
+
+Uploads accept PDF, DOCX, TXT, and Markdown (2 MB maximum; 15-page PDF limit; 25,000 extracted characters). Scanned PDFs require a readable text or Word version. Uploads are handled in memory and never saved. Resume skill extraction attempts Gemini and falls back to local suggestions.
+
 ## Current features
 
 - Three-column desktop layout and mobile section tabs.
-- Ongoing Gemini career chat with conversation history, resume wording help, and program suggestions from non-fictional catalog entries. Chat errors remain visible and messages can be retried; no scripted answers impersonate Gemini.
+- Information-only profile chat, with one question at a time and evidence-backed skill extraction. Guided fallback is clearly labeled when AI is unavailable.
 - Evidence-backed skill extraction with review, renaming, removal, and additions.
-- Plain-text resume import (`.txt` or `.md`, up to 100 KB and 25,000 total story characters).
+- Resume import from PDF, Word (.docx), TXT, and Markdown; review skills before matching.
 - Explainable skill match: confirmed required skills / total required skills.
 - Keyword, industry, work-style, and opportunity-type filters derived from the catalog.
 - One-card discovery with swipe gestures, progress, and Cards/List views.
@@ -127,17 +140,17 @@ The server reads the key from `.env` or environment variables. `.env` is ignored
 python -m unittest discover -s tests -v
 # Optional JavaScript syntax check, if Node.js is installed:
 node --check static/js/app.js
-node --test tests/test_discovery.cjs
+node --test tests/test_discovery.cjs tests/test_intake.cjs
 ```
 
-The 12 Python tests cover official calculator examples, entry/review boundaries across household sizes, invalid inputs, source-backed skills, monthly gains, static assets, API validation, secret-file exclusion, and mocked Gemini responses. Five JavaScript tests cover deck progression, filter changes, Undo, restart/clear behavior, and unknown role requirements. Visual browser QA remains unverified because browser access was unavailable in the authoring session. Live Gemini operation requires a valid replacement key.
+Python tests cover official calculator examples, entry/review boundaries across household sizes, invalid inputs, source-backed skills, monthly gains, static assets, API validation, secret-file exclusion, and mocked Gemini responses. JavaScript tests cover intake gating, exclusion of assistant text from evidence, guided-question progression, and deck progression, filter changes, Undo, restart/clear behavior, and unknown role requirements. Visual browser QA remains unverified because browser access was unavailable in the authoring session. Live Gemini operation requires a valid replacement key.
 
 ## Deferred
 
-PDF/Word resume extraction; live job feeds; feedback-driven reranking; full Spanish translation; cross-session saved plans; maximum subsidy rate modeling. Employer ranking is outside this caregiver-focused MVP.
+OCR for scanned resumes; live job feeds; feedback-driven reranking; full Spanish translation; cross-session saved plans; maximum subsidy rate modeling. Employer ranking is outside this caregiver-focused MVP.
 
 MIT. Built for Hack for Humanity SLC, November 14, 2026.
 
-Career chat uses `action: "chat"`, a `messages` array of `{role: "user" | "assistant", content: "..."}`, and a separate `story` string containing only user-provided background. Assistant replies are never appended to `story`. Chat history stays in browser session storage; the server sends it to Gemini per request. Demo background is removed when starting a real chat. Program suggestions use catalog reference data, not a live vacancy search.
+Profile chat uses `action: "chat"`, a `messages` array of `{role: "user" | "assistant", content: "..."}`, and a separate user-provided `story`. It returns `{reply, skills, complete}`. Skills are validated against exact quotes from the story and user messages; assistant replies cannot be evidence. The chat receives no opportunity catalog. Conversation state stays in browser session storage and is sent to Gemini per coaching request. Uploaded resume text is processed on the Flask server and sent to Gemini for skill extraction when available.
 
 The homepage’s **Your information** controls open a background editor with automatic browser-session saving, chat access, skill/saved-item counts, and deletion controls. Chat messages have Edit/Delete actions. Editing returns the revised message to the composer and removes subsequent turns; send it to request a new response. Deleting also removes subsequent turns so stale replies are not reused. Removed background/chat evidence invalidates affected skills and resume drafts.

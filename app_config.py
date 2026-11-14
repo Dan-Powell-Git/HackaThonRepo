@@ -8,7 +8,7 @@ load_dotenv(BASE_DIR / '.env')
 
 
 class Config:
-    MAX_CONTENT_LENGTH = 128 * 1024
+    MAX_CONTENT_LENGTH = 3 * 1024 * 1024
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
     GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
     JSON_SORT_KEYS = False
