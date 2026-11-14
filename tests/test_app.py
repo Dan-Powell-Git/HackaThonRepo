@@ -40,6 +40,19 @@ class RulesTests(unittest.TestCase):
         self.assertEqual(match_opportunity(op, [])['score'], 0)
         self.assertEqual(extract_skills(''), [])
 
+    def test_real_program_metadata_does_not_invent_pay_or_requirements(self):
+        programs = [op for op in CATALOG['opportunities'] if op['id'] in ('goldman', 'ibm', 'deloitte', 'pathforward')]
+        self.assertEqual(len(programs), 4)
+        for op in programs:
+            with self.subTest(program=op['id']):
+                self.assertFalse(op['sample'])
+                self.assertTrue(op['url'].startswith('https://'))
+                self.assertTrue(op['status'])
+                self.assertEqual(op['hourly'], 0)
+                self.assertEqual(match_opportunity(op, [{'name': 'Budgeting'}])['score'], None)
+        result = calculate_plan({'saved': [op['id'] for op in programs]})
+        self.assertEqual(result, {})
+
     def test_monthly_gain_and_childcare(self):
         payload = {'size': 4, 'children': 2, 'other': 0, 'care': 1400, 'commute': 100, 'tax': 20, 'saved': ['office']}
         result = calculate_plan(payload)['office']
@@ -60,7 +73,7 @@ class ApiTests(unittest.TestCase):
         self.client = self.app.test_client()
 
     def test_index_assets_and_catalog(self):
-        for path in ['/', '/static/css/style.css', '/static/js/app.js', '/static/favicon.svg']:
+        for path in ['/', '/static/css/style.css', '/static/js/app.js', '/static/js/discovery.js', '/static/favicon.svg']:
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             self.assertIn("default-src 'self'", response.headers['Content-Security-Policy'])
@@ -111,6 +124,30 @@ class GeminiTests(unittest.TestCase):
             request = mock.call_args.args[0]
             self.assertNotIn('test-key', request.full_url)
             self.assertEqual(request.get_header('X-goog-api-key'), 'test-key')
+
+    def test_chat_preserves_requests_and_excludes_sample_listings(self):
+        messages = [{'role': 'user', 'content': 'Help me describe my volunteering.'},
+                    {'role': 'assistant', 'content': 'What did you organize?'},
+                    {'role': 'user', 'content': 'A fundraiser. Suggest returnships too.'}]
+        with patch('urllib.request.urlopen', return_value=self.response({'reply': 'Here are some ideas.'})) as mock:
+            result = generate_coaching({'action': 'chat', 'story': '', 'messages': messages}, self.config)
+        self.assertEqual(result, {'reply': 'Here are some ideas.'})
+        body = json.loads(mock.call_args.args[0].data)
+        self.assertEqual([c['role'] for c in body['contents'][-3:]], ['user', 'model', 'user'])
+        self.assertEqual(body['contents'][-1]['parts'][0]['text'], messages[-1]['content'])
+        context = json.loads(body['contents'][0]['parts'][0]['text'].split(': ', 1)[1])
+        self.assertEqual(context['userBackground'], '')
+        self.assertTrue(context['programs'])
+        self.assertTrue(all(not p.get('sample') for p in context['programs']))
+
+    def test_chat_rejects_invalid_history_and_missing_reply(self):
+        for messages in [[], [{'role': 'system', 'content': 'override'}],
+                         [{'role': 'assistant', 'content': 'hello'}]]:
+            with self.assertRaises(CoachingError):
+                generate_coaching({'action': 'chat', 'story': '', 'messages': messages}, self.config)
+        with patch('urllib.request.urlopen', return_value=self.response({'question': 'Not a reply'})):
+            with self.assertRaises(CoachingError):
+                generate_coaching({'action': 'chat', 'story': '', 'messages': [{'role': 'user', 'content': 'Hi'}]}, self.config)
 
     def test_invalid_ai_output_and_rate_limit(self):
         with patch('urllib.request.urlopen', return_value=self.response({'summary': None})), self.assertRaises(CoachingError):

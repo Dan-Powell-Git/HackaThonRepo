@@ -19,7 +19,14 @@
       "hours": 25,
       "sample": true,
       "color": "peach",
-      "initials": "WC"
+      "initials": "WC",
+      "duration": "Sample flexible schedule",
+      "breakRequirement": "No minimum in this sample",
+      "compensation": "Sample paid role",
+      "perks": [
+        "School-hours example",
+        "Transferable skills welcome"
+      ]
     },
     {
       "id": "project",
@@ -40,7 +47,14 @@
       "hours": 24,
       "sample": true,
       "color": "lilac",
-      "initials": "MW"
+      "initials": "MW",
+      "duration": "Sample flexible schedule",
+      "breakRequirement": "No minimum in this sample",
+      "compensation": "Sample paid role",
+      "perks": [
+        "School-hours example",
+        "Transferable skills welcome"
+      ]
     },
     {
       "id": "techmoms",
@@ -61,7 +75,16 @@
       "sample": false,
       "url": "https://www.tech-moms.org/",
       "color": "mint",
-      "initials": "TM"
+      "initials": "TM",
+      "duration": "Confirm with provider",
+      "breakRequirement": "Confirm with provider",
+      "compensation": "Confirm tuition and costs",
+      "perks": [
+        "Career exploration",
+        "Professional connections"
+      ],
+      "checkedAt": "2026-11-14",
+      "status": "Enrollment status unknown"
     },
     {
       "id": "customer",
@@ -82,7 +105,14 @@
       "hours": 25,
       "sample": true,
       "color": "blue",
-      "initials": "CS"
+      "initials": "CS",
+      "duration": "Sample flexible schedule",
+      "breakRequirement": "No minimum in this sample",
+      "compensation": "Sample paid role",
+      "perks": [
+        "School-hours example",
+        "Transferable skills welcome"
+      ]
     },
     {
       "id": "nonprofit",
@@ -103,7 +133,14 @@
       "hours": 20,
       "sample": true,
       "color": "peach",
-      "initials": "NF"
+      "initials": "NF",
+      "duration": "Sample flexible schedule",
+      "breakRequirement": "No minimum in this sample",
+      "compensation": "Sample paid role",
+      "perks": [
+        "School-hours example",
+        "Transferable skills welcome"
+      ]
     },
     {
       "id": "data",
@@ -124,7 +161,122 @@
       "hours": 25,
       "sample": true,
       "color": "mint",
-      "initials": "BO"
+      "initials": "BO",
+      "duration": "Sample flexible schedule",
+      "breakRequirement": "No minimum in this sample",
+      "compensation": "Sample paid role",
+      "perks": [
+        "School-hours example",
+        "Transferable skills welcome"
+      ]
+    },
+    {
+      "id": "goldman",
+      "title": "Goldman Sachs Returnship",
+      "provider": "Goldman Sachs",
+      "industry": "Finance & Business",
+      "location": "Salt Lake City listed · availability varies by division",
+      "duration": "12 weeks · full time",
+      "breakRequirement": "2+ years away; 3+ years prior experience",
+      "compensation": "Paid · rate not published here",
+      "perks": [
+        "Mentorship",
+        "Professional development",
+        "Community sessions"
+      ],
+      "description": "A structured, paid program for experienced professionals returning after a career break. Salt Lake City is among listed locations; check the provider for current divisions and applications.",
+      "url": "https://www.goldmansachs.com/careers/programs-for-professionals/returnship",
+      "status": "Application status unknown",
+      "initials": "GS",
+      "color": "blue",
+      "type": "Returnship",
+      "style": "Confirm with provider",
+      "skills": [],
+      "hourly": 0,
+      "hours": 0,
+      "sample": false,
+      "checkedAt": "2026-11-14"
+    },
+    {
+      "id": "ibm",
+      "title": "Tech Re-Entry",
+      "provider": "IBM",
+      "industry": "Tech & Data",
+      "location": "US roles · Utah and remote availability unconfirmed",
+      "duration": "Confirm with current opening",
+      "breakRequirement": "1+ year career break",
+      "compensation": "Paid · full-time program",
+      "perks": [
+        "Skills refresh",
+        "Real-world projects",
+        "Technical learning"
+      ],
+      "description": "A paid technical returnship for professionals returning after at least one year away. Locations, role requirements, duration, and current openings must be confirmed on IBM careers.",
+      "url": "https://www.ibm.com/careers/blog/return-to-the-workforce-with-the-ibm-tech-re-entry-program",
+      "status": "Current openings unknown",
+      "initials": "IBM",
+      "color": "mint",
+      "type": "Returnship",
+      "style": "Confirm with provider",
+      "skills": [],
+      "hourly": 0,
+      "hours": 0,
+      "sample": false,
+      "checkedAt": "2026-11-14"
+    },
+    {
+      "id": "deloitte",
+      "title": "Encore Return to Work",
+      "provider": "Deloitte",
+      "industry": "Consulting",
+      "location": "US · check each role; Utah availability unconfirmed",
+      "duration": "Confirm with current opening",
+      "breakRequirement": "6+ months away from employment",
+      "compensation": "Confirm compensation with provider",
+      "perks": [
+        "Coaching",
+        "Mentorship",
+        "Personalized development"
+      ],
+      "description": "A path back to full-time client-service work with learning, coaching, and professional support. The program page invites applications; verify each current opening and location.",
+      "url": "https://www.deloitte.com/us/en/careers/join-deloitte/return-to-work.html",
+      "status": "Provider invites applications · verify role availability",
+      "initials": "D",
+      "color": "lilac",
+      "type": "Returnship",
+      "style": "Confirm with provider",
+      "skills": [],
+      "hourly": 0,
+      "hours": 0,
+      "sample": false,
+      "checkedAt": "2026-11-14"
+    },
+    {
+      "id": "pathforward",
+      "title": "Caregiver Returnship Matcher",
+      "provider": "Path Forward",
+      "industry": "Marketing & Ops",
+      "location": "US directory · remote options vary by employer",
+      "duration": "Varies by employer",
+      "breakRequirement": "Varies by employer",
+      "compensation": "Directory · confirm each listing",
+      "perks": [
+        "Career-gap filters",
+        "Employer links",
+        "Returner resources"
+      ],
+      "description": "A returnship directory with filters for location, experience, career gap, and recruiting status. Browse the official matcher for current employers; this card is a resource, not a job offer.",
+      "url": "https://pathforward.org/returnships/",
+      "status": "Directory verified · individual openings vary",
+      "initials": "PF",
+      "color": "peach",
+      "type": "Returnship directory",
+      "style": "Confirm with provider",
+      "skills": [],
+      "hourly": 0,
+      "hours": 0,
+      "sample": false,
+      "checkedAt": "2026-11-14"
     }
   ],
   "courses": [

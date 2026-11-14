@@ -19,12 +19,14 @@ static/
   html/index.html              # Application shell
   css/style.css                # Responsive styling
   js/app.js                    # Browser interactions and API calls
+  js/discovery.js              # Shared filtering, matching, and deck state
   favicon.svg
 data/
   catalog.json                 # Sample opportunities and learning resources
   utah_childcare_table4_oct2026.json
 tests/
   test_app.py
+  test_discovery.cjs
 requirements.txt
 .env.example
 .gitignore
@@ -64,17 +66,26 @@ For deployment, use a Python-capable host and a production WSGI server pointing 
 | `GET /` | Serve the HTML interface |
 | `GET /api/catalog` | Return the catalog, learning resources, and fictional demo story |
 | `POST /api/skills` | Suggest skills with exact evidence quotes from story text |
-| `POST /api/coach` | Gemini interview, skill extraction, or resume/gap draft |
+| `POST /api/coach` | Gemini conversation, skill extraction, or resume/gap draft |
 | `POST /api/calculate` | Deterministic household and sample-job comparison |
+
+## Combined design
+
+Cecilia's **Return & Rise** prototype contributes the focused card deck, program metadata, benefits chips, saved-list clear action, and optional dark green theme. ReturnReady keeps its skills profile, Gemini coaching, and household-aware return plan. Switch between **Cards** and **List** views, or use the header's theme button. On a card, swipe right to save or left to pass; buttons and keyboard shortcuts remain available. Restart restores passed cards while preserving saved matches. Clear saved returns those cards to discovery and removes their save history safely.
+
+The integration reimplements the prototype's interactions in the Flask frontend, correcting its broken JavaScript template strings and keeping all controls compatible with the app's content security policy. Cecilia's original `html_cecilia` file is unchanged locally.
 
 ## Current features
 
 - Three-column desktop layout and mobile section tabs.
-- Three-step interview with Gemini follow-up questions when configured; guided questions when unavailable.
+- Ongoing Gemini career chat with conversation history, resume wording help, and program suggestions from non-fictional catalog entries. Chat errors remain visible and messages can be retried; no scripted answers impersonate Gemini.
 - Evidence-backed skill extraction with review, renaming, removal, and additions.
 - Plain-text resume import (`.txt` or `.md`, up to 100 KB and 25,000 total story characters).
 - Explainable skill match: confirmed required skills / total required skills.
-- Keyword, industry, work-style, and opportunity-type filters.
+- Keyword, industry, work-style, and opportunity-type filters derived from the catalog.
+- One-card discovery with swipe gestures, progress, and Cards/List views.
+- Light theme and optional dark green theme; preferences last for the browser session.
+- Program duration, career-break requirement, compensation, benefits, and official links.
 - Pass, Save Match, Undo; Left/Right/U shortcuts outside form controls.
 - Saved opportunities and editable resume/gap drafts. Local drafts are explicitly labeled when Gemini is unavailable.
 - Suggested six-week refresher plans with free learning-resource links. The schedule is a suggested pace, not a claim about course duration.
@@ -84,7 +95,19 @@ For deployment, use a Python-capable host and a production WSGI server pointing 
 
 ## Data and estimates
 
-All job listings and their pay are **fictional samples**, not open job offers. The Tech-Moms card links to its [official website](https://www.tech-moms.org/); source checked November 14, 2026, enrollment status unknown. Confirm current tuition, schedules, eligibility, and availability with the provider.
+The catalog separates fictional sample jobs from real program information. Sample job titles and pay are **fictional**, not open job offers. Real programs have official source links, check dates, and explicit availability notes. No salary or skill requirements are invented for real programs; their financial estimates and skill scores remain unavailable until role-specific data is provided.
+
+Sources checked November 14, 2026:
+
+| Provider | Confirmed information and limits |
+|---|---|
+| [Tech-Moms](https://www.tech-moms.org/) | Learning program; enrollment and costs must be confirmed. |
+| [Goldman Sachs](https://www.goldmansachs.com/careers/programs-for-professionals/returnship) | Paid 12-week full-time returnship; 2+ year break and 3+ years prior experience. Salt Lake City appears among program locations, with division-dependent availability. Application status unconfirmed. |
+| [IBM](https://www.ibm.com/careers/blog/return-to-the-workforce-with-the-ibm-tech-re-entry-program) | Paid full-time technical returnship for a 1+ year break. Current openings, duration, work style, and Utah availability must be confirmed. |
+| [Deloitte Encore](https://www.deloitte.com/us/en/careers/join-deloitte/return-to-work.html) | Return-to-work program for a 6+ month employment break, with mentoring and coaching. The program page invites applications; confirm individual openings, pay, and location. |
+| [Path Forward](https://pathforward.org/returnships/) | Returnship directory, not a specific employer or job offer; requirements and pay vary by employer. |
+
+Unconfirmed Fidelity and Zions program names, HubSpot's proposed US/remote terms, and Amazon's redirected returnship URL from the prototype are not imported as verified opportunities. Confirm current terms with every provider before applying.
 
 The Python calculator encodes [Utah DWS Table 4, effective October 1, 2026](https://jobs.utah.gov/occ/provider/table1026.pdf), household sizes 2–8, income groups 1–10. New-application income limit: Group 6. Review income limit: Group 10. Other eligibility conditions are not evaluated.
 
@@ -104,12 +127,17 @@ The server reads the key from `.env` or environment variables. `.env` is ignored
 python -m unittest discover -s tests -v
 # Optional JavaScript syntax check, if Node.js is installed:
 node --check static/js/app.js
+node --test tests/test_discovery.cjs
 ```
 
-The 11 Python tests cover official calculator examples, entry/review boundaries across household sizes, invalid inputs, source-backed skills, monthly gains, static assets, API validation, secret-file exclusion, and mocked Gemini responses. Visual browser QA remains unverified because browser access was unavailable in the authoring session. Live Gemini operation requires a valid replacement key.
+The 12 Python tests cover official calculator examples, entry/review boundaries across household sizes, invalid inputs, source-backed skills, monthly gains, static assets, API validation, secret-file exclusion, and mocked Gemini responses. Five JavaScript tests cover deck progression, filter changes, Undo, restart/clear behavior, and unknown role requirements. Visual browser QA remains unverified because browser access was unavailable in the authoring session. Live Gemini operation requires a valid replacement key.
 
 ## Deferred
 
 PDF/Word resume extraction; live job feeds; feedback-driven reranking; full Spanish translation; cross-session saved plans; maximum subsidy rate modeling. Employer ranking is outside this caregiver-focused MVP.
 
 MIT. Built for Hack for Humanity SLC, November 14, 2026.
+
+Career chat uses `action: "chat"`, a `messages` array of `{role: "user" | "assistant", content: "..."}`, and a separate `story` string containing only user-provided background. Assistant replies are never appended to `story`. Chat history stays in browser session storage; the server sends it to Gemini per request. Demo background is removed when starting a real chat. Program suggestions use catalog reference data, not a live vacancy search.
+
+The homepage’s **Your information** controls open a background editor with automatic browser-session saving, chat access, skill/saved-item counts, and deletion controls. Chat messages have Edit/Delete actions. Editing returns the revised message to the composer and removes subsequent turns; send it to request a new response. Deleting also removes subsequent turns so stale replies are not reused. Removed background/chat evidence invalidates affected skills and resume drafts.

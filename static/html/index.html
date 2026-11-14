@@ -7,6 +7,7 @@
   <title>ReturnReady Utah — Your next chapter starts here</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/discovery.js" defer></script>
   <script src="/static/js/app.js" defer></script>
 </head>
 <body>
@@ -16,7 +17,7 @@
       <button class="nav active" data-action="discover" id="discover-nav">Discover opportunities</button>
       <button class="nav" data-action="plan" id="plan-nav">My return plan <span class="count" id="nav-count">0</span></button>
     </nav>
-    <div class="header-actions"><button class="language" data-action="language">Español</button><span class="avatar">YOU</span></div>
+    <div class="header-actions"><button class="theme-toggle" data-action="theme" aria-pressed="false" aria-label="Switch to dark theme">☾ <span>Dark</span></button><button class="language" data-action="language">Español</button><button class="secondary information-link" data-action="information">Your information</button></div>
   </header>
   <main>
     <section class="intro">
@@ -26,6 +27,7 @@
       </div>
       <div class="intro-note"><div class="mini-leaf">❧</div><p>A career break is part of your story.<br><strong>It doesn’t define your potential.</strong></p><span>MADE FOR UTAH CAREGIVERS</span></div>
     </section>
+    <section class="information-banner" aria-label="Your information"><div><strong>Your story. Your control.</strong><p>See what you’ve shared, edit your background and chat, or delete your information.</p></div><button class="secondary" data-action="information">View & edit your information</button></section>
     <div class="mobile-tabs" aria-label="Workspace sections">
       <button data-action="mobile" data-value="skills">My skills</button><button data-action="mobile" data-value="opportunities" class="selected">Discover</button><button data-action="mobile" data-value="saved">Saved</button>
     </div>

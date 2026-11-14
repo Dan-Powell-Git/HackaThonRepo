@@ -38,7 +38,7 @@ def match_opportunity(opportunity, skills):
     confirmed = {s['name'].strip().casefold() for s in skills}
     have = [s for s in opportunity['skills'] if s.casefold() in confirmed]
     missing = [s for s in opportunity['skills'] if s not in have]
-    score = math.floor(len(have) / len(opportunity['skills']) * 100 + 0.5)
+    score = math.floor(len(have) / len(opportunity['skills']) * 100 + 0.5) if opportunity['skills'] else None
     return {'have': have, 'missing': missing, 'score': score}
 
 
