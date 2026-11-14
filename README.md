@@ -1,4 +1,4 @@
-# ReturnReady Utah
+# Reframe
 
 A skills-first return-to-work companion for parents and caregivers, built for Hack for Humanity SLC. Turn life experience into an editable skills profile, explore flexible opportunities, and build a practical return plan.
 
@@ -86,8 +86,8 @@ PORT=8000 gunicorn --config gunicorn.conf.py app:app
 If Docker is installed, the deployment image can be tested with:
 
 ```sh
-docker build -t returnready .
-docker run --rm -p 8000:8000 -e PORT=8000 --env-file .env returnready
+docker build -t reframe .
+docker run --rm -p 8000:8000 -e PORT=8000 --env-file .env reframe
 ```
 
 The Docker build explicitly copies only application files, static assets, and datasets. `.dockerignore` excludes local secrets, virtual environments, and the previous frontend checkout. The local production server startup is tested; Docker/Railway deployment must be verified on the target platform.
@@ -108,7 +108,7 @@ References: [Railway Flask deployment](https://railway.com/guides/flask), [Railw
 
 ## Combined design
 
-Cecilia's **Return & Rise** prototype contributes the focused card deck, program metadata, benefits chips, saved-list clear action, and optional dark green theme. ReturnReady keeps its skills profile, Gemini coaching, and household-aware return plan. Switch between **Cards** and **List** views, or use the header's theme button. On a card, swipe right to save or left to pass; buttons and keyboard shortcuts remain available. Restart restores passed cards while preserving saved matches. Clear saved returns those cards to discovery and removes their save history safely.
+Cecilia's **Return & Rise** prototype contributes the focused card deck, program metadata, benefits chips, saved-list clear action, and optional dark green theme. Reframe keeps its skills profile, Gemini coaching, and household-aware return plan. Switch between **Cards** and **List** views, or use the header's theme button. On a card, swipe right to save or left to pass; buttons and keyboard shortcuts remain available. Restart restores passed cards while preserving saved matches. Clear saved returns those cards to discovery and removes their save history safely.
 
 The integration reimplements the prototype's interactions in the Flask frontend, correcting its broken JavaScript template strings and keeping all controls compatible with the app's content security policy. Cecilia's original `html_cecilia` file is unchanged locally.
 

@@ -1,4 +1,4 @@
-"""ReturnReady Utah — Flask backend and plain HTML/CSS/JS frontend."""
+"""Reframe — Flask backend and plain HTML/CSS/JS frontend."""
 import io
 import os
 from flask import Flask, Request, jsonify, request

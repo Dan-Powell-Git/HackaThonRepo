@@ -1,1 +1,1 @@
-"""ReturnReady's business logic and Gemini integration."""
+"""Reframe's business logic and Gemini integration."""

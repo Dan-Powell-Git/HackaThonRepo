@@ -1,4 +1,4 @@
-# ReturnReady Utah
+# Reframe
 
 **Turn time away into skills employers recognize, find work that fits your family's schedule, and see whether the job will actually pay.**
 
@@ -17,7 +17,7 @@ Built at **Hack for Humanity SLC** (AI Collective × Neumont University, Novembe
 
 ## Project scope
 
-ReturnReady builds on the team's original **Skills-Based Returnship Program** hackathon plan: help parents, caregivers, and other people returning from a career break make their skills visible, match with returnship opportunities, and close skill gaps with a personalized learning plan. Break-time experience can include caregiving, volunteering, freelancing, and courses. The Utah focus adds local opportunities and a proposed child care cost estimate.
+Reframe builds on the team's original **Skills-Based Returnship Program** hackathon plan: help parents, caregivers, and other people returning from a career break make their skills visible, match with returnship opportunities, and close skill gaps with a personalized learning plan. Break-time experience can include caregiving, volunteering, freelancing, and courses. The Utah focus adds local opportunities and a proposed child care cost estimate.
 
 This README describes the proposed experience and implementation plan. The repository currently contains planning documentation; feature status, architecture, and run instructions must be confirmed against the app before submission.
 
@@ -30,7 +30,7 @@ Utah has one of the highest birth rates in the U.S., and many Utah women and car
 - **Jobs don't fit school hours.**
 - **Child care can eat the paycheck.** On **October 1, 2026, Utah lowered the income limit for new child care assistance applicants**, so families can't easily tell whether going back to work will leave them better off.
 
-## Planned ReturnReady experience
+## Planned Reframe experience
 
 1. **Tell us what you've done.** A short Gemini-guided chat asks one question at a time about past work, the career break, what you did during it (caregiving, volunteering, PTA, family business, courses), interests, location, and the schedule you need. You can also upload a resume. No account required.
 2. **Review your skills.** Gemini turns your answers into transferable skills employers search for, such as *Event Planning, Budgeting, Fundraising, Leadership*. **Each skill is tied to the example you gave**, and you can edit, remove, or add skills before anything else happens.
@@ -161,7 +161,7 @@ These are options from the original plan, pending the team's implementation choi
 | Hours 18–22 | Polish the experience, sample data, and demo flow |
 | Remaining time | Prepare a three-minute pitch covering the problem, demo, and impact |
 
-**Pitch angle:** Career breaks can hide valuable skills from a traditional CV. ReturnReady makes those skills visible and connects returners to opportunities and a practical learning path.
+**Pitch angle:** Career breaks can hide valuable skills from a traditional CV. Reframe makes those skills visible and connects returners to opportunities and a practical learning path.
 
 **Optional employer view:** The original plan proposed company-posted returnships and ranked candidates. Treat this as a separate future concept outside the current caregiver-focused MVP; it would require its own privacy and fairness review before implementation.
 
