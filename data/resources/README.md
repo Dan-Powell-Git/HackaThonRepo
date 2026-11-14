@@ -1,6 +1,6 @@
 # ReturnReady resource database
 
-Merged resource catalogs for ReturnReady Utah (Hack for Humanity SLC, Track 1), checked 2026-11-14 (America/Denver). These files are reference data for backend teammates. Nothing in this folder is loaded by the Flask app yet. The live app still reads `data/catalog.json` from `functions/func1.py`.
+Merged resource catalogs for ReturnReady Utah (Hack for Humanity SLC, Track 1), checked 2026-11-14 (America/Denver). The Flask app now loads the preferred v3 master through `functions/catalog.py`. The live directory contains the 137 real records with `demo_ok: true`, `url_check_status: verified-200`, valid HTTPS links, and supported statuses. Sample/synthetic records are excluded from the live app. `data/catalog.json` now supplies only learning links and the fictional interview persona.
 
 Field definitions for the v3 spreadsheet schema are in [ReturnReady_Resources_v3_DataDictionary.csv](ReturnReady_Resources_v3_DataDictionary.csv). A human-readable listing is in [ReturnReady_Resources_v3_Directory.md](ReturnReady_Resources_v3_Directory.md).
 
@@ -55,26 +55,15 @@ If the team keeps the v3 master, treat `returnready_resources.json` as a cross-c
 - **returnready_resources_demo.json** — 22 featured records (`featured_for_demo` and `show_in_demo` both true), same `resources[]` schema. Includes Goldman, ARUP, and Morgan Stanley; do not use this file as the live deck until those flags are corrected.
 - **ReturnReady_Claude_Merge_RedTeam_Fixes.json** — recommended flag fixes for `returnready_resources.json` only. `recommended_field_fixes` (15) and `unmerged_featured_duplicates` (3). High-severity items hide Fidelity (`status: closed`), Goldman, ARUP, and Morgan Stanley from `show_in_demo` / `featured_for_demo`. Apply these before that catalog is shown.
 
-## How the Flask app could load this later
+## Current Flask integration
 
-Do not replace `data/catalog.json` with one of these files. The shapes differ, and `GET /api/catalog` returns `CATALOG` unchanged.
+`functions/catalog.py` reads `ReturnReady_Resources_v3.json` and maps eligible real records to the frontend schema. `functions/func1.py` uses that loaded catalog for `GET /api/catalog`. Other exports are retained as source/reference files, not loaded as competing masters.
 
-Today `functions/func1.py` does:
+- Preserve the editing master’s display flags and team-recorded link-check dates. A verified URL is not proof of an open vacancy; there are no Apply-now claims.
+- Map provider, category, formats, location, cost, status, and next step without inventing terms. Returnship directories and support resources are labeled as such.
+- Treat source `skills` and `interest_keywords` as resource topics, not confirmed job requirements. Exact topic overlap may indicate relevance, but does not produce a percentage match.
+- Leave hourly pay and job hours unset (zero in the API contract). Do not convert `pay_monthly_gross` to hourly pay or run the paycheck calculator without a verified paid role.
+- `data/catalog.json` contains learning-resource links and a fictional interview persona only. The persona never enables synthetic listing cards.
+- Profile chat remains focused on user information and receives no opportunity catalog.
 
-```python
-DATA_DIR = Path(__file__).resolve().parent.parent / 'data'
-CATALOG = json.loads((DATA_DIR / 'catalog.json').read_text())
-```
-
-`catalog.json` is `{opportunities, courses, demoStory}`. Each opportunity uses `provider`, string `type` (`Flexible job` / `Returnship` / `Learning program`), string `style`, string `industry`, `skills` (required by the matcher; an empty list yields no score), numeric `hourly` and `hours`, boolean `sample`, plus `color`, `initials`, `duration`, `breakRequirement`, `compensation`, and `perks`. Courses are `{skill, title, provider, url, cost}` and the UI looks them up by `skill`. `functions/func2.py` sends non-sample catalog rows to Gemini as `programs`. `calculate_plan` skips any saved card whose `hourly` is missing or zero, and it treats `hourly` as an hourly wage (`hourly * hours * 52 / 12`).
-
-A later change can point a new loader at this folder, for example `DATA_DIR / 'resources' / 'ReturnReady_Resources_v3.json'`, then:
-
-1. Keep `opportunities` where `demo_ok` is true.
-2. Badge `type` in `sample` or `synthetic`, and map that to the app's `sample: true`.
-3. Map `org` or `organization` to `provider`, and map `kind` onto the app's `type` strings the filters expect. `format` / `flexibility` are arrays; `style` in the app is one string.
-4. Do not copy `pay_monthly_gross` into `hourly`. Leave pay unset unless a teammate converts it on purpose. Sample cards that need the calculator still need an explicit hourly rate.
-5. Map seed `courses[]` separately. They key off `closes_gap` / `title`, not `skill`.
-6. For the hackathon demo deck, load `ReturnReady_seed_opportunities_v3.json` (8 cards + 6 courses). Use the 143-row demo-ok file for a directory view, not the 3-minute swipe deck.
-
-`data/utah_childcare_table4_oct2026.json` is unrelated: it is the DWS Table 4 copay table (`source`, `effective`, `households`), not a resource list.
+`data/utah_childcare_table4_oct2026.json` is separate: it is the DWS Table 4 copay table (`source`, `effective`, `households`), not a resource list.

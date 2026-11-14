@@ -1,7 +1,9 @@
 """ReturnReady Utah — Flask backend and plain HTML/CSS/JS frontend."""
 import io
+import os
 from flask import Flask, Request, jsonify, request
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 from app_config import Config
 from functions.func1 import CATALOG, calculate_plan, extract_skills
 from functions.resume import MAX_FILE_BYTES, extract_resume
@@ -19,6 +21,10 @@ def create_app(test_config=None):
     app.config.from_object(Config)
     if test_config:
         app.config.update(test_config)
+    if app.config['TRUST_PROXY']:
+        # Only trust the HTTPS scheme set by Railway's edge. Keep the original
+        # Host header; do not trust client-supplied forwarded hosts or IPs.
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=1, x_host=0, x_port=0, x_prefix=0)
 
     @app.before_request
     def validate_origin():
@@ -38,6 +44,10 @@ def create_app(test_config=None):
         if request.path.startswith('/api/'):
             response.headers['Cache-Control'] = 'no-store'
         return response
+
+    @app.get('/health')
+    def health():
+        return jsonify(status='ok', listings=len(CATALOG['opportunities']))
 
     @app.get('/')
     def index():
@@ -97,4 +107,4 @@ def create_app(test_config=None):
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=5000, debug=False)
+    app.run(host='127.0.0.1', port=int(os.environ.get('PORT', '5000')), debug=False)

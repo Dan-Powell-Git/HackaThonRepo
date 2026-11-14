@@ -12,3 +12,5 @@ class Config:
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
     GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
     JSON_SORT_KEYS = False
+    # Railway terminates HTTPS before forwarding requests to this process.
+    TRUST_PROXY = bool(os.environ.get('RAILWAY_ENVIRONMENT_ID'))

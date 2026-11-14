@@ -13,7 +13,8 @@ app.py                         # Flask application and HTTP routes
 app_config.py                  # Server configuration and .env loading
 functions/
   __init__.py
-  func1.py                     # Catalog, skills, matching, child care calculator
+  func1.py                     # Skills, matching, child care calculator
+  catalog.py                   # Adapter for real team resource listings
   func2.py                     # Server-only Gemini integration
   resume.py                    # In-memory resume text extraction
 static/
@@ -24,7 +25,8 @@ static/
   js/intake.js                 # Information collection and review rules
   favicon.svg
 data/
-  catalog.json                 # Sample opportunities and learning resources
+  catalog.json                 # Learning links and fictional interview persona only
+  resources/ReturnReady_Resources_v3.json  # Canonical team resource master
   utah_childcare_table4_oct2026.json
 tests/
   test_app.py
@@ -59,12 +61,44 @@ python -m flask --app app run --port 5001
 
 `GEMINI_MODEL` defaults to `gemini-2.5-flash`. The app works with guided questions and local skill/draft suggestions when Gemini is unavailable. A valid replacement API key is still needed to verify live Gemini coaching; the previously supplied key failed its earlier live test.
 
-For deployment, use a Python-capable host and a production WSGI server pointing to `app:app`. Set environment variables through the host. Flask's built-in server is for local development. The previous JavaScript Worker/Sites setup has been removed.
+## Deploy to Railway from GitHub
+
+The repository includes a **Dockerfile** that Railway detects automatically. It builds on Python 3.13, installs `requirements.txt`, and starts Gunicorn with `gunicorn.conf.py`. No frontend build step is needed. The application runs as a non-root container user, binds to `0.0.0.0:$PORT`, and uses two workers with four threads each by default. The 60-second server timeout allows the 25-second Gemini request to finish.
+
+1. In Railway, create a project with **Deploy from GitHub repo** and select `Dan-Powell-Git/HackaThonRepo`, branch `main`. Use the repository root (`/`), where `Dockerfile` lives.
+2. In the service's **Variables**, add a valid `GEMINI_API_KEY`. Optionally set `GEMINI_MODEL` (default `gemini-2.5-flash`). Do not upload `.env` or put the key in GitHub. The guided flow still works if Gemini is unconfigured.
+3. Keep the Dockerfile's default start command. If a previous service has a custom build/start override, clear it so the Dockerfile's `CMD` runs.
+4. In deployment settings, use **`/health`** as the healthcheck path. This endpoint checks app startup and the loaded catalog without contacting Gemini.
+5. Under **Settings → Networking → Public Networking**, choose **Generate Domain**. Use Railway's assigned `PORT`; no manual port value is needed in Variables.
+6. Open the generated HTTPS domain and test the resume/chat → skills review → listings flow.
+
+Railway injects `RAILWAY_ENVIRONMENT_ID`. Only in that environment does Flask trust one forwarded HTTPS-scheme header; forwarded hosts and client IPs are not trusted. This keeps same-origin POST requests working behind Railway's HTTPS edge. Local development keeps proxy trust disabled.
+
+Optional tuning: `WEB_CONCURRENCY` (default 2) and `GUNICORN_THREADS` (default 4). No database or persistent volume is required for the current version: resources ship as JSON, user information lives in browser session storage, and resume uploads are processed in memory.
+
+To smoke-test the same production entry point on macOS/Linux:
+
+```sh
+PORT=8000 gunicorn --config gunicorn.conf.py app:app
+# Open http://127.0.0.1:8000/health and http://127.0.0.1:8000/
+```
+
+If Docker is installed, the deployment image can be tested with:
+
+```sh
+docker build -t returnready .
+docker run --rm -p 8000:8000 -e PORT=8000 --env-file .env returnready
+```
+
+The Docker build explicitly copies only application files, static assets, and datasets. `.dockerignore` excludes local secrets, virtual environments, and the previous frontend checkout. The local production server startup is tested; Docker/Railway deployment must be verified on the target platform.
+
+References: [Railway Flask deployment](https://railway.com/guides/flask), [Railway healthchecks](https://docs.railway.com/deployments/healthchecks), [Flask proxy configuration](https://flask.palletsprojects.com/en/stable/deploying/proxy_fix/).
 
 ## API routes
 
 | Route | Purpose |
 |---|---|
+| `GET /health` | Startup healthcheck and loaded listing count |
 | `GET /` | Serve the HTML interface |
 | `GET /api/catalog` | Return the catalog, learning resources, and fictional demo story |
 | `POST /api/resume` | Extract PDF, DOCX, or text resume and suggest skills |
@@ -94,33 +128,27 @@ Uploads accept PDF, DOCX, TXT, and Markdown (2 MB maximum; 15-page PDF limit; 25
 - Information-only profile chat, with one question at a time and evidence-backed skill extraction. Guided fallback is clearly labeled when AI is unavailable.
 - Evidence-backed skill extraction with review, renaming, removal, and additions.
 - Resume import from PDF, Word (.docx), TXT, and Markdown; review skills before matching.
-- Explainable skill match: confirmed required skills / total required skills.
+- Resource topic relevance is distinguished from job requirements; percentage matching is available only for listings with stated required skills.
 - Keyword, industry, work-style, and opportunity-type filters derived from the catalog.
 - One-card discovery with swipe gestures, progress, and Cards/List views.
 - Light theme and optional dark green theme; preferences last for the browser session.
 - Program duration, career-break requirement, compensation, benefits, and official links.
 - Pass, Save Match, Undo; Left/Right/U shortcuts outside form controls.
 - Saved opportunities and editable resume/gap drafts. Local drafts are explicitly labeled when Gemini is unavailable.
-- Suggested six-week refresher plans with free learning-resource links. The schedule is a suggested pace, not a claim about course duration.
-- Side-by-side financial comparisons for sample jobs and a printable return plan.
+- Learning-resource links are retained; the app does not invent skills-gap plans from general resource topic tags.
+- A printable return plan with real provider links and next steps. Financial estimates appear only when verified pay is supplied; the current real-resource directory contains no salary-verified job offers.
 - English interface with partial Spanish translation of navigation and core discovery copy.
 - Browser-session persistence and a clear-session control.
 
 ## Data and estimates
 
-The catalog separates fictional sample jobs from real program information. Sample job titles and pay are **fictional**, not open job offers. Real programs have official source links, check dates, and explicit availability notes. No salary or skill requirements are invented for real programs; their financial estimates and skill scores remain unavailable until role-specific data is provided.
+The live directory now loads **137 real programs and resources** from `data/resources/ReturnReady_Resources_v3.json` through `functions/catalog.py`. It includes learning programs, career/community support, job boards, child care support, legal aid, and returnship directories. **No fictional job cards are served**, including when using the fictional interview persona.
 
-Sources checked November 14, 2026:
+The loader requires `type: real`, `demo_ok: true`, `url_check_status: verified-200`, a valid HTTPS URL, and a supported display status. Records marked closed, historical, interest-list-only, or otherwise excluded are hidden. The team recorded link checks on November 14, 2026; a successful link check does not confirm a current vacancy or enrollment slot. Buttons open official resources; the app does not label them “Apply now.”
 
-| Provider | Confirmed information and limits |
-|---|---|
-| [Tech-Moms](https://www.tech-moms.org/) | Learning program; enrollment and costs must be confirmed. |
-| [Goldman Sachs](https://www.goldmansachs.com/careers/programs-for-professionals/returnship) | Paid 12-week full-time returnship; 2+ year break and 3+ years prior experience. Salt Lake City appears among program locations, with division-dependent availability. Application status unconfirmed. |
-| [IBM](https://www.ibm.com/careers/blog/return-to-the-workforce-with-the-ibm-tech-re-entry-program) | Paid full-time technical returnship for a 1+ year break. Current openings, duration, work style, and Utah availability must be confirmed. |
-| [Deloitte Encore](https://www.deloitte.com/us/en/careers/join-deloitte/return-to-work.html) | Return-to-work program for a 6+ month employment break, with mentoring and coaching. The program page invites applications; confirm individual openings, pay, and location. |
-| [Path Forward](https://pathforward.org/returnships/) | Returnship directory, not a specific employer or job offer; requirements and pay vary by employer. |
+Descriptions, provider names, locations, formats, costs, dates, status, and next steps come from the team master. Online resource delivery is not represented as remote employment. Resource topics can indicate relevance to confirmed skills, but they are not treated as required job skills and do not produce a fabricated percentage match or skills-gap plan. No hourly wages or paycheck estimates are invented for real programs without salary data. The financial calculator remains tested and available for future verified paid listings.
 
-Unconfirmed Fidelity and Zions program names, HubSpot's proposed US/remote terms, and Amazon's redirected returnship URL from the prototype are not imported as verified opportunities. Confirm current terms with every provider before applying.
+The closed/unconfirmed Fidelity, Goldman Sachs, ARUP, and Morgan Stanley records remain excluded according to the master’s flags. See [the resource database notes](data/resources/README.md) for provenance and source-file rules.
 
 The Python calculator encodes [Utah DWS Table 4, effective October 1, 2026](https://jobs.utah.gov/occ/provider/table1026.pdf), household sizes 2–8, income groups 1–10. New-application income limit: Group 6. Review income limit: Group 10. Other eligibility conditions are not evaluated.
 

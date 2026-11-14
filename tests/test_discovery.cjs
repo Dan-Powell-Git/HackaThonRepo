@@ -1,8 +1,12 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const fs=require('node:fs');
 const core=require('../static/js/discovery.js');
-const catalog=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'../data/catalog.json'),'utf8')).opportunities;
+// Isolated fixtures for state transitions; these are never served to visitors.
+const catalog=[
+ {id:'office',title:'Coordinator fixture',provider:'Test organization',location:'Utah',description:'Fixture',style:'Hybrid',industry:'Operations',type:'Job',skills:['Organization','Communication','Budgeting','Spreadsheets']},
+ {id:'project',title:'Project fixture',provider:'Test organization',location:'Utah',description:'Fixture',style:'Remote',industry:'Operations',type:'Job',skills:['Organization']},
+ {id:'resource',title:'Directory fixture',provider:'Test directory',location:'US',description:'Fixture',style:'Online resource',industry:'Career support',type:'Directory',skills:[],topics:['careers']}
+];
 const initial=()=>({skills:[],saved:[],passed:[],history:[],query:'',style:'All work styles',industry:'All industries',type:'All opportunities'});
 test('saving, passing, and undo never duplicate or lose cards',()=>{
  let state=initial(), first=core.remaining(catalog,state)[0].id;
@@ -18,13 +22,13 @@ test('saving, passing, and undo never duplicate or lose cards',()=>{
 });
 test('filters retain decisions and undo safely across filter changes',()=>{
  let state=core.act(initial(),'office','save',catalog);
- state.query='Goldman';
- assert.deepEqual(core.remaining(catalog,state).map(o=>o.id),['goldman']);
+ state.query='Directory';
+ assert.deepEqual(core.remaining(catalog,state).map(o=>o.id),['resource']);
  state=core.undo(state);assert.deepEqual(state.saved,[]);
- assert.deepEqual(core.remaining(catalog,state).map(o=>o.id),['goldman']);
+ assert.deepEqual(core.remaining(catalog,state).map(o=>o.id),['resource']);
  state.query='';state.style='Remote';
  assert.ok(core.remaining(catalog,state).every(o=>o.style==='Remote'));
- assert.ok(!core.remaining(catalog,state).some(o=>o.id==='goldman'));
+ assert.ok(!core.remaining(catalog,state).some(o=>o.id==='resource'));
 });
 test('restart restores passes while clear saved does not corrupt history',()=>{
  let state=core.act(core.act(initial(),'office','save',catalog),'project','pass',catalog);
@@ -40,7 +44,7 @@ test('progress stays valid through empty filters and exhausted deck',()=>{
  assert.deepEqual(core.progress(catalog,state),{total:0,remaining:0,reviewed:0,current:null});
 });
 test('real program pages without role requirements never get a fabricated match',()=>{
- const op=catalog.find(o=>o.id==='goldman');
+ const op=catalog.find(o=>o.id==='resource');
  assert.equal(core.matching(op,[{name:'Budgeting'}]).score,null);
  const sample=catalog.find(o=>o.id==='office');
  assert.equal(core.matching(sample,[{name:'Budgeting'}]).score,25);

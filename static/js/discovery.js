@@ -5,15 +5,16 @@
     const required = op.skills || [];
     const names = skills.map(s => s.name.trim().toLowerCase());
     const have = required.filter(s => names.includes(s.toLowerCase()));
-    return {have, missing:required.filter(s => !have.includes(s)), score:required.length ? Math.round(have.length/required.length*100) : null};
+    const related=(op.topics||[]).filter(topic=>names.includes(topic.toLowerCase()));
+    return {have, related, missing:required.filter(s => !have.includes(s)), score:required.length ? Math.round(have.length/required.length*100) : null};
   }
   function filtered(opportunities, state) {
     return opportunities.filter(op =>
       (state.style === 'All work styles' || op.style === state.style) &&
       (state.industry === 'All industries' || op.industry === state.industry) &&
       (state.type === 'All opportunities' || op.type === state.type) &&
-      `${op.title} ${op.provider} ${op.location} ${op.description} ${(op.skills || []).join(' ')}`.toLowerCase().includes(state.query.trim().toLowerCase())
-    ).sort((a,b) => (matching(b,state.skills).score ?? -1) - (matching(a,state.skills).score ?? -1));
+      `${op.title} ${op.provider} ${op.location} ${op.description} ${(op.topics || op.skills || []).join(' ')}`.toLowerCase().includes(state.query.trim().toLowerCase())
+    ).sort((a,b) => (matching(b,state.skills).score ?? -1) - (matching(a,state.skills).score ?? -1) || matching(b,state.skills).related.length - matching(a,state.skills).related.length);
   }
   function remaining(opportunities, state) {
     return filtered(opportunities,state).filter(op => !state.saved.includes(op.id) && !state.passed.includes(op.id));

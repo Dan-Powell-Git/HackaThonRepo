@@ -5,6 +5,7 @@ import urllib.error
 from unittest.mock import patch
 
 from app import create_app
+from functions.catalog import load_catalog, normalize_resource
 from functions.func1 import CATALOG, TABLE, calculate_plan, eligibility, extract_skills, match_opportunity
 from functions.func2 import CoachingError, generate_coaching
 
@@ -34,43 +35,75 @@ class RulesTests(unittest.TestCase):
         skills = extract_skills(CATALOG['demoStory'])
         self.assertTrue(any(s['name'] == 'Budgeting' for s in skills))
         self.assertTrue(all(s['evidence'] in CATALOG['demoStory'] for s in skills))
-        op = CATALOG['opportunities'][0]
+        op = {'skills': ['Budgeting', 'Organization', 'Spreadsheets']}
         result = match_opportunity(op, skills)
         self.assertEqual(len(result['have']) + len(result['missing']), len(op['skills']))
         self.assertEqual(match_opportunity(op, [])['score'], 0)
         self.assertEqual(extract_skills(''), [])
 
-    def test_real_program_metadata_does_not_invent_pay_or_requirements(self):
-        programs = [op for op in CATALOG['opportunities'] if op['id'] in ('goldman', 'ibm', 'deloitte', 'pathforward')]
-        self.assertEqual(len(programs), 4)
-        for op in programs:
-            with self.subTest(program=op['id']):
-                self.assertFalse(op['sample'])
-                self.assertTrue(op['url'].startswith('https://'))
-                self.assertTrue(op['status'])
-                self.assertEqual(op['hourly'], 0)
-                self.assertEqual(match_opportunity(op, [{'name': 'Budgeting'}])['score'], None)
-        result = calculate_plan({'saved': [op['id'] for op in programs]})
-        self.assertEqual(result, {})
+    def test_live_catalog_is_real_and_excludes_unavailable_and_sample_entries(self):
+        raw = json.loads(__import__('pathlib').Path('data/resources/ReturnReady_Resources_v3.json').read_text())['opportunities']
+        expected = {r['id'] for r in raw if r.get('type') == 'real' and r.get('demo_ok') is True and r.get('url_check_status') == 'verified-200'}
+        live = CATALOG['opportunities']
+        self.assertEqual({r['id'] for r in live}, expected)
+        self.assertEqual(len(live), len(expected))
+        self.assertGreater(len(live), 100)
+        self.assertTrue(all(not r['sample'] for r in live))
+        for row in live:
+            self.assertTrue(row['url'].startswith('https://'))
+            self.assertTrue(row['checkedAt'])
+            self.assertEqual(row['hourly'], 0)
+            self.assertIsNone(match_opportunity(row, [{'name': 'Budgeting'}])['score'])
+        for hidden in ['goldman-sachs-returnship', 'fidelity-resume', 'arup-returnship', 'morgan-stanley-ut', 'office', 'syn-bookkeeper']:
+            self.assertNotIn(hidden, expected)
+        self.assertEqual(calculate_plan({'saved': [r['id'] for r in live]}), {})
+
+    def test_catalog_adapter_rejects_bad_flags_and_does_not_turn_topics_into_requirements(self):
+        from pathlib import Path
+        rows = json.loads(Path('data/resources/ReturnReady_Resources_v3.json').read_text())['opportunities']
+        row = next(r for r in rows if r['id'] == 'tech-moms')
+        live = normalize_resource(row)
+        self.assertIn('web development', live['topics'])
+        self.assertEqual(live['skills'], [])
+        self.assertEqual(live['hourly'], 0)
+        for field, value in [('type', 'sample'), ('demo_ok', False), ('status', 'closed'), ('status', 'interest_list'), ('url_check_status', 'unverified-blocked-403'), ('url', 'javascript:alert(1)')]:
+            with self.subTest(field=field, value=value):
+                self.assertIsNone(normalize_resource(dict(row, **{field: value})))
 
     def test_monthly_gain_and_childcare(self):
         payload = {'size': 4, 'children': 2, 'other': 0, 'care': 1400, 'commute': 100, 'tax': 20, 'saved': ['office']}
-        result = calculate_plan(payload)['office']
+        fixture = [{'id': 'office', 'hourly': 25, 'hours': 25}]
+        result = calculate_plan(payload, opportunities=fixture)['office']
         gross = 25 * 25 * 52 / 12
         self.assertAlmostEqual(result['gross'], gross)
         self.assertTrue(result['result']['eligible'])
         self.assertAlmostEqual(result['net'], gross * .8 - result['expense'] - 100)
         payload['children'] = 0
-        self.assertEqual(calculate_plan(payload)['office']['expense'], 0)
+        self.assertEqual(calculate_plan(payload, opportunities=fixture)['office']['expense'], 0)
         payload['other'] = 10000
         payload['children'] = 2
-        self.assertEqual(calculate_plan(payload)['office']['expense'], 1400)
+        self.assertEqual(calculate_plan(payload, opportunities=fixture)['office']['expense'], 1400)
 
 
 class ApiTests(unittest.TestCase):
     def setUp(self):
-        self.app = create_app({'TESTING': True, 'GEMINI_API_KEY': ''})
+        self.app = create_app({'TESTING': True, 'GEMINI_API_KEY': '', 'TRUST_PROXY': False})
         self.client = self.app.test_client()
+
+    def test_railway_healthcheck_without_external_services(self):
+        response = self.client.get('/health', headers={'Host': 'healthcheck.railway.app'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json, {'status': 'ok', 'listings': len(CATALOG['opportunities'])})
+
+    def test_railway_https_origin_and_forwarded_host(self):
+        client = create_app({'TESTING': True, 'TRUST_PROXY': True, 'GEMINI_API_KEY': ''}).test_client()
+        headers = {'Origin': 'https://example.up.railway.app', 'X-Forwarded-Proto': 'https', 'X-Forwarded-Host': 'untrusted.example'}
+        response = client.post('/api/skills', base_url='http://example.up.railway.app', headers=headers, json={'story': 'I managed a budget.'})
+        self.assertEqual(response.status_code, 200)
+        headers['Origin'] = 'https://untrusted.example'
+        self.assertEqual(client.post('/api/skills', base_url='http://example.up.railway.app', headers=headers, json={'story': 'My budget.'}).status_code, 403)
+        headers['Origin'] = 'https://example.up.railway.app'
+        self.assertEqual(self.client.post('/api/skills', base_url='http://example.up.railway.app', headers=headers, json={'story': 'My budget.'}).status_code, 403)
 
     def test_index_assets_and_catalog(self):
         for path in ['/', '/static/css/style.css', '/static/js/app.js', '/static/js/discovery.js', '/static/js/intake.js', '/static/favicon.svg']:
@@ -89,7 +122,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
         response = self.client.post('/api/calculate', json={'saved': ['office'], 'size': 4, 'children': 2})
         self.assertEqual(response.status_code, 200)
-        self.assertIn('office', response.json['results'])
+        self.assertEqual(response.json['results'], {})
 
     def test_resume_text_word_and_invalid_uploads(self):
         from zipfile import ZipFile
