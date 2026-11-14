@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Turn your experience into skills, explore flexible opportunities, and build your return-to-work plan.">
+  <title>ReturnReady Utah — Your next chapter starts here</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="ReturnReady home"><span class="brand-icon">❧</span>return<span>ready</span><sup>UTAH</sup></a>
+    <nav aria-label="Main navigation">
+      <button class="nav active" data-action="discover" id="discover-nav">Discover opportunities</button>
+      <button class="nav" data-action="plan" id="plan-nav">My return plan <span class="count" id="nav-count">0</span></button>
+    </nav>
+    <div class="header-actions"><button class="language" data-action="language">Español</button><span class="avatar">YOU</span></div>
+  </header>
+  <main>
+    <section class="intro">
+      <div><div class="eyebrow"><span></span><span id="intro-eyebrow">YOUR NEXT CHAPTER STARTS HERE</span></div>
+        <h1 id="intro-title">You took a break.<br>Your skills didn’t. <span class="sparkle">✳</span></h1>
+        <p id="intro-copy">Let’s turn everything you’ve learned into what comes next.<br>Find work that fits your skills, your life, and your family.</p>
+      </div>
+      <div class="intro-note"><div class="mini-leaf">❧</div><p>A career break is part of your story.<br><strong>It doesn’t define your potential.</strong></p><span>MADE FOR UTAH CAREGIVERS</span></div>
+    </section>
+    <div class="mobile-tabs" aria-label="Workspace sections">
+      <button data-action="mobile" data-value="skills">My skills</button><button data-action="mobile" data-value="opportunities" class="selected">Discover</button><button data-action="mobile" data-value="saved">Saved</button>
+    </div>
+    <div id="app"><p class="loading" role="status">Loading your next chapter…</p></div>
+    <footer><span class="footer-brand">❧ Built for your next chapter.</span><span>Hack for Humanity SLC · 2026</span><a href="https://jobs.utah.gov" target="_blank" rel="noreferrer">Utah workforce resources ↗</a></footer>
+  </main>
+  <div id="notifications" aria-live="polite" aria-atomic="true"></div>
+  <dialog id="interview-dialog" class="modal" aria-labelledby="interview-title"></dialog>
+  <noscript><p>This app needs JavaScript enabled to review skills and build your return plan.</p></noscript>
+</body>
+</html>

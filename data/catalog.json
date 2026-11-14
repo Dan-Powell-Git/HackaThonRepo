@@ -1,0 +1,161 @@
+{
+  "opportunities": [
+    {
+      "id": "office",
+      "title": "Office & community coordinator",
+      "provider": "Wasatch Community Collective",
+      "type": "Flexible job",
+      "industry": "Operations",
+      "style": "Hybrid",
+      "location": "Salt Lake City, Utah",
+      "skills": [
+        "Organization",
+        "Communication",
+        "Budgeting",
+        "Spreadsheets"
+      ],
+      "description": "Bring people, calendars, and community projects together. A sample role designed around a school-day schedule.",
+      "hourly": 25,
+      "hours": 25,
+      "sample": true,
+      "color": "peach",
+      "initials": "WC"
+    },
+    {
+      "id": "project",
+      "title": "Return-to-work project associate",
+      "provider": "Mountain West Partners",
+      "type": "Returnship",
+      "industry": "Operations",
+      "style": "Remote",
+      "location": "Remote · Utah",
+      "skills": [
+        "Project Management",
+        "Communication",
+        "Organization",
+        "Spreadsheets"
+      ],
+      "description": "A supported path back into project work, with mentoring and a gradual return to the workplace.",
+      "hourly": 28,
+      "hours": 24,
+      "sample": true,
+      "color": "lilac",
+      "initials": "MW"
+    },
+    {
+      "id": "techmoms",
+      "title": "Explore a new path in tech",
+      "provider": "Tech-Moms",
+      "type": "Learning program",
+      "industry": "Technology",
+      "style": "Hybrid",
+      "location": "Utah · check cohort details",
+      "skills": [
+        "Communication",
+        "Problem Solving",
+        "Web Development"
+      ],
+      "description": "A part-time foundational program combining technical skills, career exploration, and professional connections. Availability and cost must be confirmed with Tech-Moms.",
+      "hourly": 0,
+      "hours": 0,
+      "sample": false,
+      "url": "https://www.tech-moms.org/",
+      "color": "mint",
+      "initials": "TM"
+    },
+    {
+      "id": "customer",
+      "title": "Customer care specialist",
+      "provider": "Canyon Customer Studio",
+      "type": "Flexible job",
+      "industry": "Customer service",
+      "style": "Remote",
+      "location": "Remote · Utah",
+      "skills": [
+        "Communication",
+        "Problem Solving",
+        "Care Coordination",
+        "Customer Service"
+      ],
+      "description": "Help customers feel heard and solve everyday problems in this fictional part-time opportunity.",
+      "hourly": 23,
+      "hours": 25,
+      "sample": true,
+      "color": "blue",
+      "initials": "CS"
+    },
+    {
+      "id": "nonprofit",
+      "title": "Nonprofit program assistant",
+      "provider": "Neighborhood Futures",
+      "type": "Flexible job",
+      "industry": "Nonprofit",
+      "style": "On-site",
+      "location": "Salt Lake City, Utah",
+      "skills": [
+        "Fundraising",
+        "Event Planning",
+        "Budgeting",
+        "Communication"
+      ],
+      "description": "Put your volunteering and fundraising experience to work supporting local programs. Sample school-hours role.",
+      "hourly": 24,
+      "hours": 20,
+      "sample": true,
+      "color": "peach",
+      "initials": "NF"
+    },
+    {
+      "id": "data",
+      "title": "Operations returnship",
+      "provider": "Beehive Operations",
+      "type": "Returnship",
+      "industry": "Technology",
+      "style": "Hybrid",
+      "location": "Utah",
+      "skills": [
+        "Budgeting",
+        "Spreadsheets",
+        "Data Analysis",
+        "Organization"
+      ],
+      "description": "A fictional returnship for detail-oriented people ready to build confidence with data and business operations.",
+      "hourly": 27,
+      "hours": 25,
+      "sample": true,
+      "color": "mint",
+      "initials": "BO"
+    }
+  ],
+  "courses": [
+    {
+      "skill": "Spreadsheets",
+      "title": "Excel learning center",
+      "provider": "Microsoft",
+      "url": "https://support.microsoft.com/en-us/excel",
+      "cost": "Free learning resources"
+    },
+    {
+      "skill": "Web Development",
+      "title": "Responsive Web Design",
+      "provider": "freeCodeCamp",
+      "url": "https://www.freecodecamp.org/learn/",
+      "cost": "Free"
+    },
+    {
+      "skill": "Data Analysis",
+      "title": "Intro to data analysis",
+      "provider": "Khan Academy",
+      "url": "https://www.khanacademy.org/math/statistics-probability",
+      "cost": "Free"
+    },
+    {
+      "skill": "Project Management",
+      "title": "Project management resources",
+      "provider": "Asana",
+      "url": "https://asana.com/resources/project-management",
+      "cost": "Free articles"
+    }
+  ],
+  "demoStory": "I spent six years at home with my kids and caring for my mom. I organized our school's PTA fundraiser and managed its budget. Before that I was an office coordinator. I live near Salt Lake City, have two kids who need child care, and need a hybrid or remote job that fits school hours."
+}
